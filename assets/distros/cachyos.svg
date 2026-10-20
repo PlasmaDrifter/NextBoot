@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="cachyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00e5a3"/>
+      <stop offset="100%" stop-color="#008f68"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="92" height="92" rx="24" fill="url(#cachyGrad)"/>
+  <path fill="#ffffff" d="M30 26h40c2.2 0 4 1.8 4 4v40c0 2.2-1.8 4-4 4H30c-2.2 0-4-1.8-4-4V30c0-2.2 1.8-4 4-4zm6 10v28h28V36H36z"/>
+  <path fill="#ffffff" d="M42 42h16v16H42z"/>
+</svg>

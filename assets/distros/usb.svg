@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Subtle container -->
+  <rect x="4" y="4" width="92" height="92" rx="20" fill="#2d333b" stroke="#444c56" stroke-width="2"/>
+  <!-- Standard USB Trident Symbol in Crisp Light Platinum/Silver -->
+  <g fill="none" stroke="#f0f6fc" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Center stem -->
+    <path d="M50 78 V34"/>
+    <!-- Left branch -->
+    <path d="M50 56 H32 V40"/>
+    <!-- Right branch -->
+    <path d="M50 48 H68 V38"/>
+  </g>
+  <!-- Main arrow top -->
+  <polygon points="50,18 42,32 58,32" fill="#f0f6fc"/>
+  <!-- Bottom root circle -->
+  <circle cx="50" cy="78" r="5.5" fill="#f0f6fc"/>
+  <!-- Left square -->
+  <rect x="27" y="32" width="10" height="10" rx="1.5" fill="#f0f6fc"/>
+  <!-- Right circle -->
+  <circle cx="68" cy="34" r="5" fill="#f0f6fc"/>
+</svg>

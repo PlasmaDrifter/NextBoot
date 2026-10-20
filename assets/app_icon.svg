@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#383838"/>
+      <stop offset="100%" stop-color="#262626"/>
+    </linearGradient>
+    <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fb923c"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded squircle with subtle border -->
+  <rect x="6" y="6" width="116" height="116" rx="28" fill="url(#bgGrad)" stroke="#525252" stroke-width="2"/>
+
+  <!-- Inner subtle circular track -->
+  <circle cx="64" cy="64" r="40" fill="none" stroke="#333333" stroke-width="8"/>
+
+  <!-- Amber Orange Circular Arrow Arc -->
+  <path d="M 64 24 A 40 40 0 1 1 27 79" fill="none" stroke="url(#arrowGrad)" stroke-width="9" stroke-linecap="round"/>
+
+  <!-- Arrowhead -->
+  <polygon points="64,12 80,25 64,38" fill="url(#arrowGrad)"/>
+</svg>

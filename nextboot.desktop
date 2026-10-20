@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=NextBoot
+GenericName=One-Time OS Reboot
+Comment=Reboot into Windows or another operating system for one boot
+Exec=nboot gui
+Icon=nextboot
+Terminal=false
+Type=Application
+Categories=LocalTools;
+Keywords=reboot;windows;boot;uefi;bootnext;nobara;
+StartupNotify=true
+StartupWMClass=nextboot

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="chipBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2a3f5a"/>
+      <stop offset="100%" stop-color="#162235"/>
+    </linearGradient>
+    <linearGradient id="coreGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e5c07b"/>
+      <stop offset="100%" stop-color="#987c3f"/>
+    </linearGradient>
+  </defs>
+  <!-- Outer pins -->
+  <path stroke="#e5c07b" stroke-width="2.5" stroke-linecap="round" d="
+    M20 10v6 M32 10v6 M44 10v6 M56 10v6 M68 10v6 M80 10v6
+    M20 84v6 M32 84v6 M44 84v6 M56 84v6 M68 84v6 M80 84v6
+    M10 20h6 M10 32h6 M10 44h6 M10 56h6 M10 68h6 M10 80h6
+    M84 20h6 M84 32h6 M84 44h6 M84 56h6 M84 68h6 M84 80h6
+  "/>
+  <!-- Substrate -->
+  <rect x="16" y="16" width="68" height="68" rx="8" fill="url(#chipBg)" stroke="#388bfd" stroke-width="1.5"/>
+  <!-- Corner notch -->
+  <circle cx="24" cy="24" r="3" fill="#e5c07b"/>
+  <!-- Silicon Die -->
+  <rect x="30" y="30" width="40" height="40" rx="4" fill="#0d1117" stroke="url(#coreGold)" stroke-width="1.5"/>
+  <rect x="36" y="36" width="28" height="28" rx="2" fill="#1c2128"/>
+  <text x="50" y="53" fill="#e5c07b" font-family="monospace" font-size="9" font-weight="bold" text-anchor="middle">BIOS</text>
+</svg>

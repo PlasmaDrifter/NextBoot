@@ -1,0 +1,3 @@
+# NextBoot privileged helper rule
+# Allows members of the wheel administrative group to set UEFI BootNext without password prompts
+%wheel ALL=(ALL) NOPASSWD: /usr/local/libexec/nextboot-helper
