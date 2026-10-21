@@ -33,6 +33,7 @@ from nextboot_core import (
     load_config,
     save_config,
     set_bootnext,
+    __version__,
 )
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -384,7 +385,9 @@ class NextBootWindow(QWidget):
             header.addWidget(brand_icon)
 
         title_vbox = QVBoxLayout()
-        title_vbox.setSpacing(2)
+        title_row = QHBoxLayout()
+        title_row.setSpacing(8)
+        title_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
 
         app_title = QLabel("NextBoot", self)
         app_title.setObjectName("appTitle")
@@ -392,9 +395,15 @@ class NextBootWindow(QWidget):
         app_font.setPointSize(16)
         app_font.setBold(True)
         app_title.setFont(app_font)
-        title_vbox.addWidget(app_title)
+        title_row.addWidget(app_title)
 
-        app_desc = QLabel("One-Time Operating System Reboot Utility", self)
+        ver_lbl = QLabel(__version__, self)
+        ver_lbl.setStyleSheet("color: #7d8590; font-size: 11px; font-weight: 600; margin-bottom: 2px;")
+        title_row.addWidget(ver_lbl)
+
+        title_vbox.addLayout(title_row)
+
+        app_desc = QLabel("One-Time OS Reboot Utility", self)
         app_desc.setObjectName("appSubtitle")
         title_vbox.addWidget(app_desc)
         header.addLayout(title_vbox, stretch=1)
