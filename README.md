@@ -90,11 +90,11 @@ sudo ./install.sh
 The installer performs out-of-the-box setup:
 1. **Automated Package Dependencies**:
    - On **Arch Linux**: Automatically installs `efibootmgr`, `python-pyqt6`, and `qt6-wayland` via `pacman -S --needed`.
-   - On **Debian / Ubuntu**: Automatically installs `efibootmgr` and `python3-pyqt6` via `apt-get`.
+   - On **Debian / Ubuntu**: Automatically installs `efibootmgr`, `python3-pyqt6`, `python3-pyqt6.qtsvg`, and `qt6-wayland` via `apt-get`.
 2. **Hyprland Window Rules**: Automatically detects `~/.config/hypr/hyprland.conf` and registers floating and centered window rules so NextBoot floats out of the box instead of tiling.
 3. **Privileged Backend Helper**: Installs to `/usr/local/libexec/nextboot-helper`.
 4. **Scoped Sudoers Policy**: Configures `/etc/sudoers.d/99-nextboot` allowing members of `%wheel` and `%sudo` to set `BootNext` without a password prompt.
-5. **Core Application & 100+ Distro Logos**: Installs libraries and 105 vector SVG logos to `/usr/local/share/nextboot/`.
+5. **Core Application & 100+ Distro Logos**: Installs libraries and 106 vector SVG logos to `/usr/local/share/nextboot/`.
 6. **Binaries & Desktop Launcher**: Registers `/usr/local/bin/nboot`, `/usr/local/bin/nextboot`, and `/usr/local/share/applications/nextboot.desktop`.
 7. **Bash Shell Autocompletions**: Installs completions to `/usr/share/bash-completion/completions/nboot`.
 

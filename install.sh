@@ -20,8 +20,8 @@ if command -v pacman >/dev/null 2>&1; then
     echo "Arch Linux detected. Ensuring efibootmgr, python-pyqt6, and qt6-wayland are installed..."
     pacman -S --needed --noconfirm efibootmgr python-pyqt6 qt6-wayland 2>/dev/null || true
 elif command -v apt-get >/dev/null 2>&1; then
-    echo "Debian/Ubuntu detected. Ensuring efibootmgr and python3-pyqt6 are installed..."
-    apt-get update -y && apt-get install -y efibootmgr python3-pyqt6 2>/dev/null || true
+    echo "Debian/Ubuntu detected. Ensuring efibootmgr, python3-pyqt6, python3-pyqt6.qtsvg, and qt6-wayland are installed..."
+    apt-get update -y && apt-get install -y efibootmgr python3-pyqt6 python3-pyqt6.qtsvg qt6-wayland 2>/dev/null || true
 fi
 
 # 1. Privileged backend helper
