@@ -842,13 +842,7 @@ class NextBootWindow(QWidget):
             self.hidden_btn.setVisible(False)
 
         default_entry = self.mgr.get_default_entry()
-
-        has_windows = any(e.os_type == "windows" for e in self.mgr.entries)
-        if not has_windows:
-            self.banner.setText("Notice: Windows Boot Manager not found in UEFI NVRAM. Connect Windows drive to enable.")
-            self.banner.setVisible(True)
-        else:
-            self.banner.setVisible(False)
+        self.banner.setVisible(False)
 
         default_row = 0
         visible_idx = 0

@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-__version__ = "v0.7.2"
+__version__ = "v0.7.3"
 
 KNOWN_SUBDISTROS = {
     "cachy": ("CachyOS", "Based on Arch Linux", ["cachyos", "cachy", "arch"]),
@@ -312,6 +312,64 @@ class BootEntry:
         self.title, self.base_distro, self.extra_slugs = self._resolve_subdistro_details()
         self.slugs = self._generate_slugs()
 
+    def is_os_entry(self) -> bool:
+        """
+        Determine if this boot entry represents an actual installed operating system,
+        filtering out motherboard firmware setup utilities (e.g. Setup, Diagnostics, Splash Screen)
+        and empty hardware device slots (e.g. NVMe0, ATA HDD0, USB CD, PXE Boot).
+        """
+        # The currently active booted OS is always kept
+        if self.is_current:
+            return True
+
+        extra_lower = self.extra.lower()
+        title_clean = self.raw_title.strip().lower()
+
+        # 1. Motherboard firmware volume files (SPI ROM utilities) are not OSes
+        if "fvfile(" in extra_lower:
+            return False
+
+        # 2. Known OEM firmware setup, test, and diagnostic tools
+        firmware_tools = {
+            "setup",
+            "boot menu",
+            "diagnostic splash screen",
+            "lenovo diagnostics",
+            "dell diagnostics",
+            "startup interrupt menu",
+            "rescue and recovery",
+            "regulatory information",
+            "bios setup",
+            "system diagnostics",
+            "device configuration",
+        }
+        if title_clean in firmware_tools or any(title_clean.startswith(ft) for ft in ["setup", "boot menu", "lenovo diagnostics"]):
+            return False
+
+        # 3. Raw hardware drive slots and network boot ports
+        hardware_stubs = {
+            "nvme0", "nvme1", "nvme2", "nvme3",
+            "ata hdd0", "ata hdd1", "sata hdd0", "sata hdd1",
+            "usb cd", "usb fdd", "usb hdd",
+            "pxe boot", "network boot", "lan boot", "ip4 pxe", "ip6 pxe",
+        }
+        if title_clean in hardware_stubs:
+            return False
+
+        # 4. If it has a specific EFI loader executable or hard drive partition, it is an OS
+        if ".efi" in extra_lower or "hd(" in extra_lower or "file(" in extra_lower:
+            return True
+
+        # 5. Classified OS distributions
+        if self.os_type in ["windows", "fedora", "cachyos", "debian_ubuntu", "arch", "linux"]:
+            return True
+
+        # 6. Detected removable media with recognized label (e.g. Ventoy)
+        if self.os_type == "usb" and (self.title != self.raw_title or ".efi" in extra_lower):
+            return True
+
+        return False
+
     def _classify(self) -> str:
         text = f"{self.raw_title} {self.extra}".lower()
         if "windows" in text or "bootmgfw.efi" in text or "microsoft" in text:
@@ -426,6 +484,7 @@ class UEFIManager:
         self.boot_current: Optional[str] = None
         self.boot_next: Optional[str] = None
         self.boot_order: List[str] = []
+        self.all_entries: List[BootEntry] = []
         self.entries: List[BootEntry] = []
         self.refresh()
 
@@ -433,6 +492,7 @@ class UEFIManager:
         self.boot_current = None
         self.boot_next = None
         self.boot_order = []
+        self.all_entries = []
         self.entries = []
 
         if not shutil.which("efibootmgr"):
@@ -466,19 +526,28 @@ class UEFIManager:
                     extra=extra or "",
                     is_current=is_curr,
                 )
-                self.entries.append(entry)
+                self.all_entries.append(entry)
+                if entry.is_os_entry():
+                    self.entries.append(entry)
 
     def find_entry(self, query: str) -> Optional[BootEntry]:
         """Find the best matching boot entry by ID, slug, or title."""
         q = query.strip().lower().lstrip("-")
         for e in self.entries:
-            if e.entry_id.lower() == q:
+            if e.entry_id.lower() == q or f"boot{e.entry_id.lower()}" == q:
                 return e
         for e in self.entries:
             if q in e.slugs:
                 return e
         for e in self.entries:
             if q in e.title.lower() or q in e.raw_title.lower():
+                return e
+
+        for e in self.all_entries:
+            if e.entry_id.lower() == q or f"boot{e.entry_id.lower()}" == q:
+                return e
+        for e in self.all_entries:
+            if q in e.slugs or q in e.title.lower() or q in e.raw_title.lower():
                 return e
         return None
 

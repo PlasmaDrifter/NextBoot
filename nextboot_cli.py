@@ -46,7 +46,8 @@ def cmd_list(mgr: UEFIManager, show_all: bool = False):
     hidden_count = 0
 
     default_entry = mgr.get_default_entry()
-    for entry in mgr.entries:
+    entries_to_show = mgr.all_entries if show_all else mgr.entries
+    for entry in entries_to_show:
         is_hidden = is_entry_hidden(entry, hidden_list, is_firmware=False)
         if is_hidden:
             hidden_count += 1
@@ -63,6 +64,8 @@ def cmd_list(mgr: UEFIManager, show_all: bool = False):
             status_flags.append("CURRENT")
         if not entry.active:
             status_flags.append("INACTIVE")
+        if not entry.is_os_entry() and show_all:
+            status_flags.append("FIRMWARE" if "fvfile" in entry.extra.lower() else "DEVICE")
         if is_hidden and show_all:
             status_flags.append("HIDDEN")
 
