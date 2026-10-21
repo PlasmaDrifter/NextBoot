@@ -31,6 +31,24 @@ KNOWN_SUBDISTROS = {
     "bazzite": ("Bazzite", "Based on Fedora Atomic", ["bazzite", "fedora"]),
     "chimeraos": ("ChimeraOS", "Based on Arch Linux", ["chimeraos", "chimera", "arch"]),
     "omarchy": ("Omarchy", "Based on Arch Linux", ["omarchy", "arch"]),
+    "almalinux": ("AlmaLinux", "Enterprise Linux", ["almalinux", "alma", "rhel"]),
+    "alma": ("AlmaLinux", "Enterprise Linux", ["almalinux", "alma", "rhel"]),
+    "rocky": ("Rocky Linux", "Enterprise Linux", ["rocky", "rockylinux", "rhel"]),
+    "rockylinux": ("Rocky Linux", "Enterprise Linux", ["rocky", "rockylinux", "rhel"]),
+    "tails": ("Tails", "Based on Debian", ["tails", "debian"]),
+    "biglinux": ("BigLinux", "Based on Manjaro / Arch", ["biglinux", "manjaro", "arch"]),
+    "archcraft": ("Archcraft", "Based on Arch Linux", ["archcraft", "arch"]),
+    "archbang": ("ArchBang", "Based on Arch Linux", ["archbang", "arch"]),
+    "blackarch": ("BlackArch", "Based on Arch Linux", ["blackarch", "arch"]),
+    "arcolinux": ("ArcoLinux", "Based on Arch Linux", ["arcolinux", "arco", "arch"]),
+    "rebornos": ("RebornOS", "Based on Arch Linux", ["rebornos", "arch"]),
+    "ghostbsd": ("GhostBSD", "Based on FreeBSD", ["ghostbsd", "freebsd"]),
+    "bunsenlabs": ("BunsenLabs", "Based on Debian", ["bunsenlabs", "debian"]),
+    "ultramarine": ("Ultramarine Linux", "Based on Fedora", ["ultramarine", "fedora"]),
+    "pikaos": ("PikaOS", "Based on Ubuntu / Debian", ["pikaos", "pika", "ubuntu"]),
+    "fydeos": ("FydeOS", "Based on ChromiumOS", ["fydeos", "chromeos"]),
+    "zimaos": ("ZimaOS", "Personal Cloud OS", ["zimaos", "zima"]),
+    "umbrelos": ("umbrelOS", "Home Server OS", ["umbrelos", "umbrel"]),
 }
 
 
@@ -444,13 +462,27 @@ class BootEntry:
                 if s not in slugs:
                     slugs.append(s)
         elif self.os_type == "arch":
-            for s in ["arch", "manjaro"]:
+            for s in ["arch"]:
                 if s not in slugs:
                     slugs.append(s)
         elif self.os_type == "debian_ubuntu":
-            for s in ["ubuntu", "debian", "mint"]:
-                if s not in slugs:
-                    slugs.append(s)
+            text = f"{self.raw_title} {self.extra}".lower()
+            if "ubuntu" in text:
+                for s in ["ubuntu", "deb"]:
+                    if s not in slugs:
+                        slugs.append(s)
+            elif "debian" in text:
+                for s in ["debian", "deb"]:
+                    if s not in slugs:
+                        slugs.append(s)
+            elif "mint" in text:
+                for s in ["mint", "linuxmint"]:
+                    if s not in slugs:
+                        slugs.append(s)
+            else:
+                for s in ["debian", "deb"]:
+                    if s not in slugs:
+                        slugs.append(s)
         elif self.os_type == "usb":
             for s in ["usb", "ventoy", "flash"]:
                 if s not in slugs:

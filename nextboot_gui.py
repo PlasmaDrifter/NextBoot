@@ -5,6 +5,7 @@ and automatic sub-distro recognition (Nobara, CachyOS, etc.).
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 from typing import List, Optional
@@ -76,58 +77,143 @@ def resolve_distro_icon_path(entry: Optional[BootEntry], is_firmware: bool = Fal
     text = f"{entry.title} {entry.raw_title} {' '.join(entry.slugs)}".lower()
 
     mapping = [
+        # 1. Non-Linux / Hardware / Firmware
         (["windows", "bootmgfw", "microsoft"], "windows.svg"),
+        (["usb", "flash drive", "samsung", "ventoy"], "usb.svg"),
+
+        # 2. Specific Fedora derivatives
         (["nobara"], "nobara.svg"),
-        (["cachy"], "cachyos.svg"),
         (["bazzite"], "bazzite.svg"),
-        (["mx linux", "mx-linux", "mx"], "mx.svg"),
-        (["antix"], "antix.svg"),
-        (["fedora"], "fedora.svg"),
+        (["ultramarine"], "ultramarine.svg"),
+        (["coreos", "fedora coreos"], "coreos.svg"),
+
+        # 3. Specific Arch derivatives
+        (["cachy"], "cachyos.svg"),
         (["endeavour"], "endeavouros.svg"),
         (["garuda"], "garuda.svg"),
-        (["manjaro"], "manjaro.svg"),
-        (["arch", "omarchy"], "arch.svg"),
+        (["chimeraos", "chimera"], "chimeraos.svg"),
+        (["archcraft"], "archcraft.svg"),
+        (["archbang"], "archbang.svg"),
+        (["biglinux"], "biglinux.svg"),
+        (["blackarch"], "blackarch.svg"),
+        (["arcolinux", "arco linux"], "arcolinux.svg"),
+        (["rebornos"], "rebornos.svg"),
+        (["steamos"], "steamos.svg"),
         (["artix"], "artix.svg"),
+        (["manjaro"], "manjaro.svg"),
+
+        # 4. Specific Debian / Ubuntu derivatives
+        (["mx linux", "mx-linux", "mx"], "mx.svg"),
+        (["antix"], "antix.svg"),
         (["pop-os", "pop_os", "popos"], "popos.svg"),
         (["mint", "linuxmint"], "mint.svg"),
+        (["tails"], "tails.svg"),
+        (["pikaos", "pika os"], "pikaos.svg"),
+        (["bunsenlabs"], "bunsenlabs.svg"),
+        (["voyager"], "voyager.svg"),
+        (["deepin"], "deepin.svg"),
+        (["parrot"], "parrot.svg"),
+        (["kali"], "kali.svg"),
+        (["pureos"], "pureos.svg"),
+        (["vanilla"], "vanilla.svg"),
+        (["q4os"], "q4os.svg"),
+        (["tuxedo"], "tuxedo.svg"),
+        (["neon", "kde neon"], "neon.svg"),
         (["elementary"], "elementary.svg"),
         (["zorin"], "zorin.svg"),
+        (["lite", "linux lite"], "lite.svg"),
+        (["peppermint"], "peppermint.svg"),
+        (["bodhi"], "bodhi.svg"),
+        (["raspbian", "raspberry"], "raspbian.svg"),
+        (["devuan"], "devuan.svg"),
         (["kubuntu"], "kubuntu.svg"),
         (["lubuntu"], "lubuntu.svg"),
         (["xubuntu"], "xubuntu.svg"),
-        (["ubuntu"], "ubuntu.svg"),
-        (["debian"], "debian.svg"),
-        (["devuan"], "devuan.svg"),
-        (["opensuse", "suse"], "opensuse.svg"),
-        (["steamos"], "steamos.svg"),
-        (["nixos"], "nixos.svg"),
-        (["void"], "void.svg"),
+        (["budgie", "ubuntu budgie"], "budgie.svg"),
+        (["ubuntu mate", "ubuntu-mate"], "mate.svg"),
+        (["ubuntu studio", "ubuntu-studio"], "studio.svg"),
+        (["ubuntukylin", "ubuntu kylin", "kylin"], "kylin.svg"),
+
+        # 5. Specific RHEL / CentOS derivatives
+        (["almalinux", "alma"], "almalinux.svg"),
+        (["rocky", "rockylinux"], "rocky.svg"),
+        (["oracle", "oracle linux"], "oraclelinux.svg"),
+        (["centos"], "centos.svg"),
+
+        # 6. Specific BSDs
+        (["ghostbsd"], "ghostbsd.svg"),
+        (["openbsd"], "openbsd.svg"),
+        (["netbsd"], "netbsd.svg"),
+        (["dragonfly", "dragonflybsd"], "dragonflybsd.svg"),
+        (["freebsd"], "freebsd.svg"),
+
+        # 7. ChromeOS / Chromium derivatives
+        (["fydeos"], "fydeos.svg"),
+        (["chromeos", "chrome os", "chromiumos", "chromium os"], "chromeos.svg"),
+
+        # 8. Independent and distinctive operating systems
+        (["slackware"], "slackware.svg"),
         (["gentoo"], "gentoo.svg"),
         (["alpine"], "alpine.svg"),
-        (["freebsd", "bsd"], "freebsd.svg"),
-        (["q4os"], "q4os.svg"),
-        (["tuxedo"], "tuxedo.svg"),
+        (["void"], "void.svg"),
+        (["nixos"], "nixos.svg"),
+        (["solus"], "solus.svg"),
+        (["kaos"], "kaos.svg"),
         (["mageia"], "mageia.svg"),
         (["pclinuxos"], "pclinuxos.svg"),
         (["puppy"], "puppy.svg"),
-        (["lite", "linux lite"], "lite.svg"),
-        (["kali"], "kali.svg"),
-        (["solus"], "solus.svg"),
-        (["deepin"], "deepin.svg"),
-        (["neon", "kde neon"], "neon.svg"),
-        (["vanilla"], "vanilla.svg"),
-        (["pureos"], "pureos.svg"),
-        (["parrot"], "parrot.svg"),
-        (["centos"], "centos.svg"),
+        (["openmandriva", "mandriva"], "openmandriva.svg"),
+        (["rosa", "rosa linux"], "rosa.svg"),
+        (["truenas", "freenas"], "truenas.svg"),
+        (["batocera"], "batocera.svg"),
+        (["freedos"], "freedos.svg"),
+        (["netrunner"], "netrunner.svg"),
+        (["pisilinux", "pisi"], "pisilinux.svg"),
+        (["smartos"], "smartos.svg"),
+        (["salentos"], "salentos.svg"),
+        (["guix", "gnu guix"], "guix.svg"),
+        (["hyperbola"], "hyperbola.svg"),
+        (["illumos"], "illumos.svg"),
+        (["parabola"], "parabola.svg"),
+        (["postmarketos"], "postmarketos.svg"),
+        (["qubes", "qubesos"], "qubes.svg"),
+        (["trisquel"], "trisquel.svg"),
+        (["loc-os", "locos"], "locos.svg"),
+        (["sabayon"], "sabayon.svg"),
+        (["crystallinux", "crystal linux"], "crystal.svg"),
+        (["aosc"], "aosc.svg"),
+        (["proxmox", "pve"], "proxmox.svg"),
+        (["reactos"], "reactos.svg"),
+        (["haiku", "haikuos"], "haiku.svg"),
+        (["knoppix"], "knoppix.svg"),
+        (["lxle"], "lxle.svg"),
+        (["umbrelos", "umbrel"], "umbrelos.svg"),
+        (["zimaos", "zima"], "zimaos.svg"),
+
+        # 9. Major Base Distributions
+        (["fedora"], "fedora.svg"),
+        (["arch", "omarchy"], "arch.svg"),
+        (["ubuntu"], "ubuntu.svg"),
+        (["debian"], "debian.svg"),
         (["rhel", "redhat", "red hat"], "rhel.svg"),
-        (["raspbian", "raspberry"], "raspbian.svg"),
-        (["peppermint"], "peppermint.svg"),
-        (["bodhi"], "bodhi.svg"),
-        (["usb", "flash drive", "samsung"], "usb.svg"),
+        (["opensuse", "suse"], "opensuse.svg"),
+        (["bsd"], "freebsd.svg"),
     ]
 
+    words = set(re.findall(r"[a-z0-9]+", text))
+
     for keywords, filename in mapping:
-        if any(k in text for k in keywords):
+        matched = False
+        for k in keywords:
+            if " " in k or "-" in k or "_" in k:
+                if k in text:
+                    matched = True
+                    break
+            elif k in words:
+                matched = True
+                break
+
+        if matched:
             p = DISTROS_DIR / filename
             if p.exists():
                 return p
