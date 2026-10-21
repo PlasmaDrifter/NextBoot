@@ -792,20 +792,15 @@ class NextBootWindow(QWidget):
 
         menu = QMenu(self)
 
-        reboot_act = menu.addAction(f"Reboot into {target_title}")
-        reboot_act.triggered.connect(lambda: self._execute_reboot_for_data(data))
-
-        menu.addSeparator()
-
         desktop_act = menu.addAction("Create Desktop Shortcut")
         desktop_act.triggered.connect(lambda: self._create_shortcut(target_title, slug, icon_path, "desktop"))
 
-        app_menu_act = menu.addAction("Add to Application Menu (KDE Search and Shortcuts)")
+        app_menu_act = menu.addAction("Add to Application Menu")
         app_menu_act.triggered.connect(lambda: self._create_shortcut(target_title, slug, icon_path, "applications"))
 
         menu.addSeparator()
 
-        copy_act = menu.addAction(f"Copy Command (nboot {slug} -y)")
+        copy_act = menu.addAction("Copy CLI Command")
         copy_act.triggered.connect(lambda: self._copy_hotkey_command(slug))
 
         menu.exec(self.list_widget.mapToGlobal(pos))
@@ -975,26 +970,26 @@ class NextBootWindow(QWidget):
                 background: none;
             }
             QMenu {
-                background-color: #161b22;
-                color: #c9d1d9;
-                border: 1px solid #30363d;
+                background-color: #282e38;
+                color: #f0f6fc;
+                border: 1px solid #484f58;
                 border-radius: 6px;
                 padding: 4px;
             }
             QMenu::item {
                 background-color: transparent;
-                padding: 6px 16px 6px 12px;
+                padding: 6px 14px 6px 10px;
                 border-radius: 4px;
                 font-size: 11px;
             }
             QMenu::item:selected {
-                background-color: #21262d;
-                color: #f0f6fc;
+                background-color: #38414e;
+                color: #ffffff;
             }
             QMenu::separator {
                 height: 1px;
-                background-color: #30363d;
-                margin: 4px 6px;
+                background-color: #3e4756;
+                margin: 3px 4px;
             }
         """)
 
