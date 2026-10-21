@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-__version__ = "v0.7.1"
+__version__ = "v0.7.2"
 
 KNOWN_SUBDISTROS = {
     "cachy": ("CachyOS", "Based on Arch Linux", ["cachyos", "cachy", "arch"]),
