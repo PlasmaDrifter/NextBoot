@@ -12,11 +12,12 @@ It utilizes the UEFI standard `BootNext` mechanism. Setting `BootNext` instructs
 ## Features
 
 - **One-Click Reboot**: Reboot into Windows or other operating systems from a native Qt GUI or terminal command.
+- **Desktop & Hotkey Shortcuts**: Right-click any OS entry to create an executable Desktop shortcut, add an Application Menu launcher (for GNOME Dash / KDE KRunner search and taskbar pinning), or copy its instant reboot command for global keybindings.
 - **Desktop Environment Intelligence**: Automatically detects active desktop environment (GNOME, KDE Plasma, XFCE, Cinnamon, MATE, COSMIC) and adapts menus, notifications, and shortcut guides dynamically.
 - **Automatic Reversion**: Subsequent boots return to your default Linux environment without manual boot menu intervention.
 - **Smart Dynamic Detection**: Dynamically inspects UEFI NVRAM entries via `efibootmgr`. No hardcoded drive UUIDs or partition numbers.
 - **Interactive CLI Reference**: Built-in dialog (`?` button or `F1` shortcut) dynamically displays terminal commands tailored to your active boot entries with environment-aware tips.
-- **Desktop & Hotkey Shortcuts**: Right-click any OS entry to create an executable Desktop shortcut, add an Application Menu launcher (for GNOME Dash / KDE KRunner search and taskbar pinning), or copy its instant reboot command for global keybindings.
+
 - **Universal Sudoers Support**: Compatible with both `%wheel` (Fedora, Nobara, Arch) and `%sudo` (Ubuntu, Debian) administrative groups.
 - **Detached Drive Friendly**: If a drive is temporarily disconnected, NextBoot detects its absence gracefully. As soon as the drive is reconnected or an OS is reinstalled, NextBoot picks it up automatically.
 - **Fast CLI Shorthands**: Intuitive commands like `nboot win`, `nboot fedora`, and `nboot bios`.
