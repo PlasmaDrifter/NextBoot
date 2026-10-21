@@ -39,6 +39,7 @@ from nextboot_core import (
     load_config,
     save_config,
     set_bootnext,
+    simplify_os_name,
     __version__,
 )
 
@@ -773,13 +774,14 @@ class NextBootWindow(QWidget):
     def _create_shortcut(self, title: str, slug: str, icon_path: Path, target: str):
         success, res = create_os_shortcut(title, slug, str(icon_path.resolve()), target=target)
         if success:
+            shortcut_name = f"Reboot into {simplify_os_name(title)}"
             if target == "desktop":
                 loc = "Desktop"
             elif self.de == "gnome":
                 loc = "Application Menu (searchable in GNOME Dash)"
             else:
                 loc = "Application Menu"
-            self._show_status_message(f"Created shortcut for '{title}' in your {loc}.")
+            self._show_status_message(f"Created shortcut '{shortcut_name}' in your {loc}.")
         else:
             self._show_status_message(f"Error creating shortcut: {res}", is_error=True)
 

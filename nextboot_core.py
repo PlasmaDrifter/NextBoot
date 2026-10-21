@@ -391,6 +391,39 @@ def execute_reboot(firmware_setup: bool = False, dry_run: bool = False) -> Tuple
         return False, f"Failed to trigger reboot: {e}"
 
 
+def simplify_os_name(title: str) -> str:
+    """
+    Simplify OS title for desktop shortcut naming:
+    'Windows Boot Manager' -> 'Windows'
+    'Nobara Linux' -> 'Nobara'
+    'Debian GNU/Linux' -> 'Debian'
+    'Fedora Linux' -> 'Fedora'
+    'Linux Mint' -> 'Mint'
+    'Ventoy (Samsung Flash Drive)' -> 'Ventoy'
+    'UEFI Firmware Setup' -> 'UEFI Firmware'
+    """
+    t = title.strip()
+    if re.search(r"\bwindows\b", t, re.IGNORECASE):
+        return "Windows"
+    if re.search(r"\bventoy\b", t, re.IGNORECASE):
+        return "Ventoy"
+    if re.search(r"\b(uefi|bios|firmware)\b", t, re.IGNORECASE):
+        return "UEFI Firmware"
+
+    # Strip parenthesized hardware/device info if present
+    t = re.sub(r"\s*\(.*?\)$", "", t).strip()
+
+    # Strip common suffixes/prefixes if they don't consume the entire title
+    sub = re.sub(r"\s+GNU/Linux$", "", t, flags=re.IGNORECASE)
+    sub = re.sub(r"\s+Linux$", "", sub, flags=re.IGNORECASE)
+    sub = re.sub(r"^Linux\s+", "", sub, flags=re.IGNORECASE)
+    sub = re.sub(r"\s+Boot\s+Manager$", "", sub, flags=re.IGNORECASE).strip()
+
+    if sub:
+        return sub
+    return t if t else title
+
+
 def create_os_shortcut(
     title: str,
     slug: str,
@@ -402,11 +435,14 @@ def create_os_shortcut(
     target: 'desktop' (saves to ~/Desktop) or 'applications' (saves to ~/.local/share/applications)
     """
     home = Path.home()
+    os_name = simplify_os_name(title)
+    shortcut_name = f"Reboot into {os_name}"
+
     if target == "desktop":
         target_dir = home / "Desktop"
         target_dir.mkdir(parents=True, exist_ok=True)
-        clean_title = re.sub(r"[^\w\s-]", "", title).strip()
-        desktop_file = target_dir / f"Reboot into {clean_title}.desktop"
+        clean_name = re.sub(r"[^\w\s-]", "", os_name).strip()
+        desktop_file = target_dir / f"Reboot into {clean_name}.desktop"
     elif target == "applications":
         target_dir = home / ".local" / "share" / "applications"
         target_dir.mkdir(parents=True, exist_ok=True)
@@ -419,9 +455,9 @@ def create_os_shortcut(
 
     content = f"""[Desktop Entry]
 Type=Application
-Name=Reboot into {title}
+Name={shortcut_name}
 GenericName=One-Time OS Reboot
-Comment=Reboot directly into {title} via NextBoot
+Comment=Reboot directly into {os_name} via NextBoot
 Exec=nboot {slug} -y
 Icon={icon_str}
 Terminal=false
