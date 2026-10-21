@@ -72,7 +72,7 @@ def resolve_distro_icon_path(entry: Optional[BootEntry], is_firmware: bool = Fal
         (["endeavour"], "endeavouros.svg"),
         (["garuda"], "garuda.svg"),
         (["manjaro"], "manjaro.svg"),
-        (["arch"], "arch.svg"),
+        (["arch", "omarchy"], "arch.svg"),
         (["artix"], "artix.svg"),
         (["pop-os", "pop_os", "popos"], "popos.svg"),
         (["mint", "linuxmint"], "mint.svg"),

@@ -30,6 +30,7 @@ KNOWN_SUBDISTROS = {
     "mint": ("Linux Mint", "Based on Ubuntu", ["mint", "linuxmint", "ubuntu"]),
     "bazzite": ("Bazzite", "Based on Fedora Atomic", ["bazzite", "fedora"]),
     "chimeraos": ("ChimeraOS", "Based on Arch Linux", ["chimeraos", "chimera", "arch"]),
+    "omarchy": ("Omarchy", "Based on Arch Linux", ["omarchy", "arch"]),
 }
 
 
@@ -167,9 +168,9 @@ class BootEntry:
             return "fedora"
         if "ubuntu" in text or "debian" in text or "mint" in text:
             return "debian_ubuntu"
-        if "arch" in text or "manjaro" in text or "endeavouros" in text:
+        if "arch" in text or "manjaro" in text or "endeavouros" in text or "omarchy" in text:
             return "arch"
-        if "linux" in text or "shim" in text or "grub" in text:
+        if "linux" in text or "shim" in text or "grub" in text or "limine" in text or "systemd-boot" in text:
             return "linux"
         if "usb" in text or "flash drive" in text or "removable" in text:
             return "usb"
