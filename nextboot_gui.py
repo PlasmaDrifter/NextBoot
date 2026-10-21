@@ -755,15 +755,6 @@ class NextBootWindow(QWidget):
         self.help_btn.clicked.connect(self._show_cli_help)
         header.addWidget(self.help_btn)
 
-        self.hidden_btn = QPushButton("Hidden", self)
-        self.hidden_btn.setObjectName("hiddenPillBtn")
-        self.hidden_btn.setFixedHeight(28)
-        self.hidden_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.hidden_btn.setToolTip("View and restore hidden boot entries")
-        self.hidden_btn.clicked.connect(self._show_hidden_dialog)
-        self.hidden_btn.setVisible(False)
-        header.addWidget(self.hidden_btn)
-
         self.refresh_btn = QPushButton("Refresh", self)
         self.refresh_btn.setObjectName("subtleBtn")
         self.refresh_btn.setFixedHeight(28)
@@ -803,6 +794,17 @@ class NextBootWindow(QWidget):
         self.one_click_chk.setChecked(bool(self.config.get("one_click_reboot", False)))
         self.one_click_chk.toggled.connect(self._on_one_click_toggled)
         bottom_row.addWidget(self.one_click_chk)
+
+        bottom_row.addStretch()
+
+        self.hidden_btn = QPushButton("Hidden", self)
+        self.hidden_btn.setObjectName("hiddenPillBtn")
+        self.hidden_btn.setFixedHeight(30)
+        self.hidden_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.hidden_btn.setToolTip("View and restore hidden boot entries")
+        self.hidden_btn.clicked.connect(self._show_hidden_dialog)
+        self.hidden_btn.setVisible(False)
+        bottom_row.addWidget(self.hidden_btn)
 
         bottom_row.addStretch()
 
@@ -1170,20 +1172,21 @@ class NextBootWindow(QWidget):
             }
             QPushButton#hiddenPillBtn {
                 background-color: #21262d;
-                color: #e3b341;
+                color: #8b949e;
                 font-size: 11px;
-                font-weight: 600;
+                font-weight: 500;
                 border-radius: 6px;
-                padding: 4px 10px;
-                border: 1px solid #d29922;
+                padding: 4px 14px;
+                border: 1px solid #30363d;
             }
             QPushButton#hiddenPillBtn:hover {
                 background-color: #30363d;
-                color: #f0e68c;
-                border: 1px solid #e3b341;
+                color: #c9d1d9;
+                border: 1px solid #484f58;
             }
             QPushButton#hiddenPillBtn:pressed {
                 background-color: #161b22;
+                color: #f0f6fc;
             }
             QPushButton#actionRebootBtn {
                 background-color: #21262d;
