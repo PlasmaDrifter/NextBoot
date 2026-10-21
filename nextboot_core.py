@@ -88,10 +88,26 @@ def is_entry_hidden(entry: Optional["BootEntry"], hidden_list: List[str], is_fir
     if not hidden_list:
         return False
 
+FIRMWARE_TARGETS = {
+    "bios",
+    "uefi",
+    "firmware",
+    "uefi_setup",
+    "uefi-setup",
+    "firmware_setup",
+    "firmware-setup",
+}
+
+
+def is_entry_hidden(entry: Optional["BootEntry"], hidden_list: List[str], is_firmware: bool = False) -> bool:
+    """Determine if a boot entry or virtual firmware option is marked as hidden."""
+    if not hidden_list:
+        return False
+
     hidden_normalized = [str(h).strip().lower() for h in hidden_list if str(h).strip()]
 
     if is_firmware or entry is None:
-        return any(h in ["firmware", "firmware_setup", "uefi", "uefi_setup", "bios"] for h in hidden_normalized)
+        return any(h in FIRMWARE_TARGETS for h in hidden_normalized)
 
     eid = entry.entry_id.lower()
     if eid in hidden_normalized or f"boot{eid}" in hidden_normalized:
@@ -119,7 +135,7 @@ def hide_entry(identifier: str, mgr: Optional["UEFIManager"] = None) -> Tuple[bo
     config = load_config()
     hidden = list(config.get("hidden_entries", []))
 
-    if target.lower() in ["bios", "uefi", "firmware", "uefi-setup", "firmware-setup"]:
+    if target.lower() in FIRMWARE_TARGETS:
         store_id = "uefi_setup"
         display_name = "UEFI Firmware Setup"
     else:
@@ -171,32 +187,33 @@ def unhide_entry(identifier: str, mgr: Optional["UEFIManager"] = None) -> Tuple[
     to_remove = []
     restored_names = []
 
-    for item in hidden:
-        item_str = str(item).strip()
-        item_lower = item_str.lower()
-        matched = False
-        display_title = item_str
+    if target in FIRMWARE_TARGETS:
+        for item in hidden:
+            if str(item).strip().lower() in FIRMWARE_TARGETS:
+                to_remove.append(item)
+                restored_names.append("UEFI Firmware Setup")
+    else:
+        for item in hidden:
+            item_str = str(item).strip()
+            item_lower = item_str.lower()
+            matched = False
+            display_title = item_str
 
-        if item_lower in ["firmware", "firmware_setup", "uefi", "uefi_setup", "bios"]:
-            if target in ["firmware", "firmware_setup", "uefi", "uefi_setup", "bios"]:
-                matched = True
-                display_title = "UEFI Firmware Setup"
-        else:
             entry = mgr.find_entry(item_str)
             if entry:
                 display_title = f"{entry.title} (Boot{entry.entry_id})"
                 if (target == entry.entry_id.lower() or 
                     target == f"boot{entry.entry_id.lower()}" or 
                     target in [s.lower() for s in entry.slugs] or 
-                    target in entry.title.lower() or 
-                    target in entry.raw_title.lower()):
+                    target == entry.title.lower() or 
+                    target == entry.raw_title.lower()):
                     matched = True
             elif target == item_lower or target == f"boot{item_lower}":
                 matched = True
 
-        if matched:
-            to_remove.append(item)
-            restored_names.append(display_title)
+            if matched:
+                to_remove.append(item)
+                restored_names.append(display_title)
 
     if not to_remove:
         return False, f"No hidden entry matches '{identifier}'."
