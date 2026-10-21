@@ -36,10 +36,14 @@ from nextboot_core import (
     create_os_shortcut,
     detect_desktop_environment,
     execute_reboot,
+    hide_entry,
+    is_entry_hidden,
     load_config,
     save_config,
     set_bootnext,
     simplify_os_name,
+    unhide_all_entries,
+    unhide_entry,
     __version__,
 )
 
@@ -477,6 +481,163 @@ class CliHelpDialog(QDialog):
         main_layout.addLayout(footer)
 
 
+class HiddenEntriesDialog(QDialog):
+    def __init__(self, mgr: UEFIManager, parent=None):
+        super().__init__(parent)
+        self.mgr = mgr
+        self.setWindowTitle("Hidden Boot Entries")
+        self.resize(520, 420)
+        self.setMinimumSize(420, 300)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(22, 20, 22, 18)
+        main_layout.setSpacing(12)
+
+        # Header
+        header_layout = QVBoxLayout()
+        header_layout.setSpacing(3)
+        title = QLabel("Hidden Boot Entries", self)
+        title.setObjectName("dialogTitle")
+        subtitle = QLabel("Entries hidden from the main list. Click Restore to make them visible again.", self)
+        subtitle.setObjectName("dialogSubtitle")
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+        main_layout.addLayout(header_layout)
+
+        # Scroll Area
+        self.scroll = QScrollArea(self)
+        self.scroll.setWidgetResizable(True)
+        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        self.content = QWidget()
+        self.content.setStyleSheet("background: transparent;")
+        self.content_layout = QVBoxLayout(self.content)
+        self.content_layout.setContentsMargins(0, 2, 6, 2)
+        self.content_layout.setSpacing(8)
+        self.scroll.setWidget(self.content)
+        main_layout.addWidget(self.scroll, stretch=1)
+
+        # Footer
+        footer = QHBoxLayout()
+        footer.setSpacing(10)
+
+        self.restore_all_btn = QPushButton("Restore All", self)
+        self.restore_all_btn.setObjectName("subtleBtn")
+        self.restore_all_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.restore_all_btn.clicked.connect(self._restore_all)
+        footer.addWidget(self.restore_all_btn)
+
+        footer.addStretch()
+
+        close_btn = QPushButton("Close", self)
+        close_btn.setObjectName("closeBtn")
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.clicked.connect(self.accept)
+        footer.addWidget(close_btn)
+        main_layout.addLayout(footer)
+
+        self._load_items()
+
+    def _load_items(self):
+        while self.content_layout.count():
+            child = self.content_layout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+
+        hidden_items = self.mgr.get_hidden_entries()
+        if not hidden_items:
+            self.restore_all_btn.setEnabled(False)
+            empty_lbl = QLabel(
+                "<span style='color: #8b949e; font-size: 12px;'>No boot entries are currently hidden.</span>",
+                self.content,
+            )
+            empty_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            empty_lbl.setContentsMargins(0, 40, 0, 40)
+            self.content_layout.addWidget(empty_lbl)
+            self.content_layout.addStretch()
+            return
+
+        self.restore_all_btn.setEnabled(True)
+
+        for entry, is_fw in hidden_items:
+            row_card = QFrame(self.content)
+            row_card.setObjectName("hiddenRowCard")
+            row_card.setStyleSheet("""
+                QFrame#hiddenRowCard {
+                    background-color: #161b22;
+                    border: 1px solid #30363d;
+                    border-radius: 6px;
+                    padding: 8px 12px;
+                }
+                QFrame#hiddenRowCard:hover {
+                    border: 1px solid #484f58;
+                    background-color: #1c2128;
+                }
+            """)
+            row_layout = QHBoxLayout(row_card)
+            row_layout.setContentsMargins(8, 6, 8, 6)
+            row_layout.setSpacing(12)
+
+            # Icon
+            icon_path = resolve_distro_icon_path(entry, is_firmware=is_fw)
+            if icon_path and icon_path.exists():
+                icon_widget = QSvgWidget(str(icon_path), row_card)
+                icon_widget.setFixedSize(26, 26)
+                icon_widget.setStyleSheet("background: transparent;")
+                row_layout.addWidget(icon_widget)
+            else:
+                ph = QLabel("OS", row_card)
+                ph.setFixedSize(26, 26)
+                ph.setAlignment(Qt.AlignmentFlag.AlignCenter)
+                ph.setStyleSheet("color: #7d8590; font-size: 10px; font-weight: bold; background: #21262d; border-radius: 4px;")
+                row_layout.addWidget(ph)
+
+            # Info
+            info_layout = QVBoxLayout()
+            info_layout.setSpacing(2)
+
+            if is_fw:
+                title_text = "UEFI Firmware Setup"
+                sub_text = "Firmware settings utility"
+                unhide_target = "uefi_setup"
+            else:
+                title_text = entry.title
+                sub_text = f"Boot{entry.entry_id}"
+                unhide_target = entry.entry_id
+
+            lbl_title = QLabel(f"<span style='color: #f0f6fc; font-size: 12px; font-weight: 600;'>{title_text}</span>", row_card)
+            lbl_title.setTextFormat(Qt.TextFormat.RichText)
+            lbl_sub = QLabel(f"<span style='color: #7d8590; font-size: 11px;'>{sub_text}</span>", row_card)
+            lbl_sub.setTextFormat(Qt.TextFormat.RichText)
+            info_layout.addWidget(lbl_title)
+            info_layout.addWidget(lbl_sub)
+            row_layout.addLayout(info_layout, stretch=1)
+
+            # Restore button
+            btn_restore = QPushButton("Restore", row_card)
+            btn_restore.setObjectName("subtleBtn")
+            btn_restore.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn_restore.setFixedSize(74, 28)
+            btn_restore.clicked.connect(lambda checked, t=unhide_target: self._restore_single(t))
+            row_layout.addWidget(btn_restore)
+
+            self.content_layout.addWidget(row_card)
+
+        self.content_layout.addStretch()
+
+    def _restore_single(self, target: str):
+        unhide_entry(target, self.mgr)
+        self._load_items()
+        if self.parent() and hasattr(self.parent(), "_load_list"):
+            self.parent()._load_list()
+
+    def _restore_all(self):
+        unhide_all_entries()
+        self._load_items()
+        if self.parent() and hasattr(self.parent(), "_load_list"):
+            self.parent()._load_list()
+
+
 class NextBootWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -484,6 +645,7 @@ class NextBootWindow(QWidget):
         self.config = load_config()
         self.de = detect_desktop_environment()
         self.items_data: List[dict] = []
+        self.current_undo_target: Optional[str] = None
 
         self.setWindowTitle("NextBoot")
 
@@ -593,6 +755,15 @@ class NextBootWindow(QWidget):
         self.help_btn.clicked.connect(self._show_cli_help)
         header.addWidget(self.help_btn)
 
+        self.hidden_btn = QPushButton("Hidden", self)
+        self.hidden_btn.setObjectName("hiddenPillBtn")
+        self.hidden_btn.setFixedHeight(28)
+        self.hidden_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.hidden_btn.setToolTip("View and restore hidden boot entries")
+        self.hidden_btn.clicked.connect(self._show_hidden_dialog)
+        self.hidden_btn.setVisible(False)
+        header.addWidget(self.hidden_btn)
+
         self.refresh_btn = QPushButton("Refresh", self)
         self.refresh_btn.setObjectName("subtleBtn")
         self.refresh_btn.setFixedHeight(28)
@@ -602,11 +773,12 @@ class NextBootWindow(QWidget):
 
         main_layout.addLayout(header)
 
-        # Notice banner if Windows is missing
+        # Notice banner if Windows is missing or for actions
         self.banner = QLabel(self)
         self.banner.setObjectName("statusBanner")
         self.banner.setVisible(False)
         self.banner.setWordWrap(True)
+        self.banner.linkActivated.connect(self._on_banner_link)
         main_layout.addWidget(self.banner)
 
         # 2. Clean List of Entries with Distro Logos
@@ -651,11 +823,21 @@ class NextBootWindow(QWidget):
     def _load_list(self):
         self.mgr.refresh()
         self.config = load_config()
+        hidden_list = self.config.get("hidden_entries", [])
+
         self.one_click_chk.blockSignals(True)
         self.one_click_chk.setChecked(bool(self.config.get("one_click_reboot", False)))
         self.one_click_chk.blockSignals(False)
         self.list_widget.clear()
         self.items_data.clear()
+
+        # Update hidden button in header
+        hidden_items = self.mgr.get_hidden_entries()
+        if hidden_items:
+            self.hidden_btn.setText(f"Hidden ({len(hidden_items)})")
+            self.hidden_btn.setVisible(True)
+        else:
+            self.hidden_btn.setVisible(False)
 
         default_entry = self.mgr.get_default_entry()
 
@@ -667,9 +849,13 @@ class NextBootWindow(QWidget):
             self.banner.setVisible(False)
 
         default_row = 0
+        visible_idx = 0
 
-        # Add detected UEFI entries
-        for idx, entry in enumerate(self.mgr.entries):
+        # Add detected UEFI entries (skip hidden)
+        for entry in self.mgr.entries:
+            if is_entry_hidden(entry, hidden_list, is_firmware=False):
+                continue
+
             is_current = (entry.entry_id == self.mgr.boot_current)
             is_default = (default_entry and entry.entry_id == default_entry.entry_id)
 
@@ -691,26 +877,30 @@ class NextBootWindow(QWidget):
             })
 
             if is_default:
-                default_row = idx
+                default_row = visible_idx
+            visible_idx += 1
 
-        # Add UEFI Firmware Setup option
-        fw_item = QListWidgetItem(self.list_widget)
-        fw_widget = OSListRowWidget(
-            entry=None,
-            is_current=False,
-            is_default=False,
-            is_firmware_setup=True,
-            parent=self.list_widget,
-        )
-        fw_item.setSizeHint(fw_widget.sizeHint())
-        self.list_widget.addItem(fw_item)
-        self.list_widget.setItemWidget(fw_item, fw_widget)
-        self.items_data.append({
-            "entry": None,
-            "is_firmware": True,
-        })
+        # Add UEFI Firmware Setup option if not hidden
+        if not is_entry_hidden(None, hidden_list, is_firmware=True):
+            fw_item = QListWidgetItem(self.list_widget)
+            fw_widget = OSListRowWidget(
+                entry=None,
+                is_current=False,
+                is_default=False,
+                is_firmware_setup=True,
+                parent=self.list_widget,
+            )
+            fw_item.setSizeHint(fw_widget.sizeHint())
+            self.list_widget.addItem(fw_item)
+            self.list_widget.setItemWidget(fw_item, fw_widget)
+            self.items_data.append({
+                "entry": None,
+                "is_firmware": True,
+            })
 
         if self.items_data:
+            if default_row >= len(self.items_data):
+                default_row = 0
             self.list_widget.setCurrentRow(default_row)
             self.list_widget.setFocus()
 
@@ -770,16 +960,45 @@ class NextBootWindow(QWidget):
             return
         self._execute_reboot_for_data(data)
 
-    def _show_status_message(self, text: str, is_error: bool = False):
+    def _show_status_message(self, text: str, is_error: bool = False, undo_target: Optional[str] = None):
         color = "#f85149" if is_error else "#58a6ff"
         border = "#da3633" if is_error else "#1f6feb"
         bg = "#161b22"
         self.banner.setStyleSheet(
             f"background-color: {bg}; color: {color}; border: 1px solid {border}; border-radius: 6px; padding: 6px 12px; font-size: 11px;"
         )
-        self.banner.setText(text)
+        if undo_target:
+            self.current_undo_target = undo_target
+            full_html = (
+                f"{text} "
+                f"<a href='#undo' style='color: #ea580c; font-weight: bold; text-decoration: underline; margin-left: 8px;'>Undo</a>"
+            )
+            self.banner.setText(full_html)
+        else:
+            self.current_undo_target = None
+            self.banner.setText(text)
         self.banner.setVisible(True)
-        QTimer.singleShot(4000, lambda: self.banner.setVisible(False))
+        QTimer.singleShot(5000, lambda: self.banner.setVisible(False))
+
+    def _on_banner_link(self, link: str):
+        if link == "#undo" and getattr(self, "current_undo_target", None):
+            target = self.current_undo_target
+            self.current_undo_target = None
+            unhide_entry(target, self.mgr)
+            self._load_list()
+            self._show_status_message("Restored entry to list.")
+
+    def _hide_entry_action(self, target: str, display_name: str):
+        success, msg = hide_entry(target, self.mgr)
+        if success:
+            self._load_list()
+            self._show_status_message(f"Hidden '{display_name}'.", undo_target=target)
+        else:
+            self._show_status_message(msg, is_error=True)
+
+    def _show_hidden_dialog(self):
+        dlg = HiddenEntriesDialog(self.mgr, self)
+        dlg.exec()
 
     def _create_shortcut(self, title: str, slug: str, icon_path: Path, target: str):
         success, res = create_os_shortcut(title, slug, str(icon_path.resolve()), target=target)
@@ -847,6 +1066,30 @@ class NextBootWindow(QWidget):
 
         copy_act = menu.addAction("Copy CLI Command")
         copy_act.triggered.connect(lambda: self._copy_hotkey_command(slug))
+
+        menu.addSeparator()
+
+        if is_firmware:
+            hide_target = "uefi_setup"
+            can_hide = True
+            hide_label = "Hide UEFI Setup"
+        else:
+            hide_target = entry.entry_id
+            can_hide = (entry.entry_id != self.mgr.boot_current)
+            hide_label = f"Hide '{simplify_os_name(entry.title)}'"
+
+        if can_hide:
+            hide_act = menu.addAction(hide_label)
+            hide_act.triggered.connect(lambda: self._hide_entry_action(hide_target, target_title))
+        else:
+            cant_hide_act = menu.addAction("Cannot Hide Active Booted OS")
+            cant_hide_act.setEnabled(False)
+
+        hidden_items = self.mgr.get_hidden_entries()
+        if hidden_items:
+            menu.addSeparator()
+            manage_act = menu.addAction(f"Manage Hidden Entries ({len(hidden_items)})...")
+            manage_act.triggered.connect(self._show_hidden_dialog)
 
         menu.exec(self.list_widget.mapToGlobal(pos))
 
@@ -923,6 +1166,23 @@ class NextBootWindow(QWidget):
                 border: 1px solid #484f58;
             }
             QPushButton#helpBtn:pressed {
+                background-color: #161b22;
+            }
+            QPushButton#hiddenPillBtn {
+                background-color: #21262d;
+                color: #e3b341;
+                font-size: 11px;
+                font-weight: 600;
+                border-radius: 6px;
+                padding: 4px 10px;
+                border: 1px solid #d29922;
+            }
+            QPushButton#hiddenPillBtn:hover {
+                background-color: #30363d;
+                color: #f0e68c;
+                border: 1px solid #e3b341;
+            }
+            QPushButton#hiddenPillBtn:pressed {
                 background-color: #161b22;
             }
             QPushButton#actionRebootBtn {

@@ -13,9 +13,13 @@ from nextboot_core import (
     UEFIManager,
     execute_reboot,
     get_config_path,
+    hide_entry,
+    is_entry_hidden,
     load_config,
     save_config,
     set_bootnext,
+    unhide_all_entries,
+    unhide_entry,
     __version__,
 )
 
@@ -25,7 +29,7 @@ def print_banner():
     print("-" * 55)
 
 
-def cmd_list(mgr: UEFIManager):
+def cmd_list(mgr: UEFIManager, show_all: bool = False):
     print_banner()
 
     print(f"Current Booted OS : Boot{mgr.boot_current or 'Unknown'}")
@@ -37,8 +41,18 @@ def cmd_list(mgr: UEFIManager):
     print(f"{'BOOT ID':<10} {'STATUS':<18} {'OS TITLE':<32} {'CLI SHORTHAND'}")
     print("-" * 75)
 
+    config = load_config()
+    hidden_list = config.get("hidden_entries", [])
+    hidden_count = 0
+
     default_entry = mgr.get_default_entry()
     for entry in mgr.entries:
+        is_hidden = is_entry_hidden(entry, hidden_list, is_firmware=False)
+        if is_hidden:
+            hidden_count += 1
+            if not show_all:
+                continue
+
         is_current = (entry.entry_id == mgr.boot_current)
         is_default = (default_entry and entry.entry_id == default_entry.entry_id)
 
@@ -49,6 +63,8 @@ def cmd_list(mgr: UEFIManager):
             status_flags.append("CURRENT")
         if not entry.active:
             status_flags.append("INACTIVE")
+        if is_hidden and show_all:
+            status_flags.append("HIDDEN")
 
         status_str = ", ".join(status_flags) if status_flags else "READY"
         primary_slug = entry.slugs[0] if entry.slugs else entry.entry_id.lower()
@@ -58,6 +74,46 @@ def cmd_list(mgr: UEFIManager):
 
     print("-" * 75)
     print("Special shortcuts: nboot bios | nboot uefi (Reboots into BIOS/UEFI setup)")
+    if hidden_count > 0 and not show_all:
+        print(f"Note: {hidden_count} entries are hidden. Run 'nboot list --all' or 'nboot hidden' to view.")
+
+
+def cmd_hide(mgr: UEFIManager, target: str):
+    success, msg = hide_entry(target, mgr)
+    if success:
+        print(msg)
+    else:
+        print(f"Error: {msg}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_unhide(mgr: UEFIManager, target: str):
+    success, msg = unhide_entry(target, mgr)
+    if success:
+        print(msg)
+    else:
+        print(f"Error: {msg}", file=sys.stderr)
+        sys.exit(1)
+
+
+def cmd_hidden(mgr: UEFIManager):
+    print_banner()
+    hidden_items = mgr.get_hidden_entries()
+    if not hidden_items:
+        print("No boot entries are currently hidden.")
+        print("To hide an entry from the list, run: nboot hide <target>")
+        return
+
+    print(f"Currently Hidden Entries ({len(hidden_items)}):")
+    print("-" * 75)
+    for entry, is_fw in hidden_items:
+        if is_fw:
+            print(f"  [FIRMWARE]  UEFI Firmware Setup (restore with: nboot unhide uefi)")
+        else:
+            slug = entry.slugs[0] if entry.slugs else entry.entry_id.lower()
+            print(f"  Boot{entry.entry_id:<6}  {entry.title:<30} (restore with: nboot unhide {entry.entry_id})")
+    print("-" * 75)
+    print("To restore all entries at once, run: nboot unhide all")
 
 
 def cmd_status(mgr: UEFIManager):
@@ -154,6 +210,7 @@ def main():
     # Check for direct flags
     dry_run = False
     skip_confirm = False
+    show_all = False
     filtered_args = []
 
     for arg in args:
@@ -161,6 +218,8 @@ def main():
             dry_run = True
         elif arg in ["-y", "--yes", "--now"]:
             skip_confirm = True
+        elif arg in ["-a", "--all"]:
+            show_all = True
         else:
             filtered_args.append(arg)
 
@@ -178,18 +237,40 @@ def main():
         print("  nboot win | windows      Reboot into Windows")
         print("  nboot fedora | nobara    Reboot into Fedora / Nobara")
         print("  nboot bios | uefi        Reboot into UEFI Firmware / BIOS Setup")
-        print("  nboot list | ls          List all bootable operating systems")
+        print("  nboot list | ls [-a]     List bootable operating systems (use -a to include hidden)")
         print("  nboot status             Show current UEFI BootNext status")
         print("  nboot set-default <os>   Set default target OS")
+        print("  nboot hide <target>      Hide a boot entry from the main list")
+        print("  nboot unhide <target>    Restore a hidden entry (use 'all' to restore everything)")
+        print("  nboot hidden             List all currently hidden entries")
         print("  nboot gui                Launch graphical interface")
         print("\nOptions:")
+        print("  -a, --all                Show all entries including hidden ones in 'nboot list'")
         print("  -y, --now                Reboot immediately without confirmation prompt")
         print("  -d, --dry-run            Simulate execution without modifying NVRAM or rebooting")
         print("  -h, --help               Show this help message")
         return
 
     if sub in ["l", "ls", "list"]:
-        cmd_list(mgr)
+        cmd_list(mgr, show_all=show_all)
+        return
+
+    if sub in ["hidden"]:
+        cmd_hidden(mgr)
+        return
+
+    if sub in ["hide"]:
+        if len(filtered_args) < 2:
+            print("Error: Specify target entry to hide. Example: nboot hide 0013")
+            sys.exit(1)
+        cmd_hide(mgr, filtered_args[1])
+        return
+
+    if sub in ["unhide", "restore"]:
+        if len(filtered_args) < 2:
+            print("Error: Specify target entry to unhide, or 'all'. Example: nboot unhide 0013")
+            sys.exit(1)
+        cmd_unhide(mgr, filtered_args[1])
         return
 
     if sub in ["status", "info"]:

@@ -58,6 +58,7 @@ def load_config() -> dict:
         "one_click_reboot": False,
         "window_width": 580,
         "window_height": 585,
+        "hidden_entries": [],
     }
     if not config_file.exists():
         return default_config
@@ -65,6 +66,8 @@ def load_config() -> dict:
         with open(config_file, "r", encoding="utf-8") as f:
             data = json.load(f)
             default_config.update(data)
+            if "hidden_entries" in data and isinstance(data["hidden_entries"], list):
+                default_config["hidden_entries"] = [str(x).strip() for x in data["hidden_entries"] if str(x).strip()]
             return default_config
     except Exception:
         return default_config
@@ -78,6 +81,140 @@ def save_config(config_data: dict) -> None:
             json.dump(config_data, f, indent=2)
     except Exception as err:
         sys.stderr.write(f"Warning: Failed to save config: {err}\n")
+
+
+def is_entry_hidden(entry: Optional["BootEntry"], hidden_list: List[str], is_firmware: bool = False) -> bool:
+    """Determine if a boot entry or virtual firmware option is marked as hidden."""
+    if not hidden_list:
+        return False
+
+    hidden_normalized = [str(h).strip().lower() for h in hidden_list if str(h).strip()]
+
+    if is_firmware or entry is None:
+        return any(h in ["firmware", "firmware_setup", "uefi", "uefi_setup", "bios"] for h in hidden_normalized)
+
+    eid = entry.entry_id.lower()
+    if eid in hidden_normalized or f"boot{eid}" in hidden_normalized:
+        return True
+
+    raw_lower = entry.raw_title.lower()
+    title_lower = entry.title.lower()
+    for h in hidden_normalized:
+        if h == raw_lower or h == title_lower:
+            return True
+
+    for s in entry.slugs:
+        if s.lower() in hidden_normalized:
+            return True
+
+    return False
+
+
+def hide_entry(identifier: str, mgr: Optional["UEFIManager"] = None) -> Tuple[bool, str]:
+    """Add an entry identifier (ID, slug, or title) to the hidden_entries list."""
+    target = identifier.strip()
+    if not target:
+        return False, "No entry identifier provided."
+
+    config = load_config()
+    hidden = list(config.get("hidden_entries", []))
+
+    if target.lower() in ["bios", "uefi", "firmware", "uefi-setup", "firmware-setup"]:
+        store_id = "uefi_setup"
+        display_name = "UEFI Firmware Setup"
+    else:
+        if mgr is None:
+            mgr = UEFIManager()
+        matched_entry = mgr.find_entry(target)
+        if matched_entry:
+            if matched_entry.entry_id == mgr.boot_current:
+                return False, f"Cannot hide '{matched_entry.title}' because it is the currently active booted OS."
+            store_id = matched_entry.entry_id.upper()
+            display_name = f"{matched_entry.title} (Boot{store_id})"
+        else:
+            norm_hex = target.upper().lstrip("BOOT")
+            if re.match(r"^[0-9A-F]{4}$", norm_hex):
+                store_id = norm_hex
+                display_name = f"Boot{store_id}"
+            else:
+                return False, f"Could not find boot entry matching '{target}'."
+
+    if store_id.upper() in [str(h).upper() for h in hidden]:
+        return False, f"'{display_name}' is already hidden."
+
+    hidden.append(store_id)
+    config["hidden_entries"] = hidden
+    save_config(config)
+    return True, f"Hidden '{display_name}'."
+
+
+def unhide_entry(identifier: str, mgr: Optional["UEFIManager"] = None) -> Tuple[bool, str]:
+    """Remove an entry identifier from the hidden_entries list."""
+    target = identifier.strip().lower()
+    if not target:
+        return False, "No entry identifier provided."
+
+    config = load_config()
+    hidden = list(config.get("hidden_entries", []))
+    if not hidden:
+        return False, "No entries are currently hidden."
+
+    if target in ["all", "*"]:
+        count = len(hidden)
+        config["hidden_entries"] = []
+        save_config(config)
+        return True, f"Restored all {count} hidden entries."
+
+    if mgr is None:
+        mgr = UEFIManager()
+
+    to_remove = []
+    restored_names = []
+
+    for item in hidden:
+        item_str = str(item).strip()
+        item_lower = item_str.lower()
+        matched = False
+        display_title = item_str
+
+        if item_lower in ["firmware", "firmware_setup", "uefi", "uefi_setup", "bios"]:
+            if target in ["firmware", "firmware_setup", "uefi", "uefi_setup", "bios"]:
+                matched = True
+                display_title = "UEFI Firmware Setup"
+        else:
+            entry = mgr.find_entry(item_str)
+            if entry:
+                display_title = f"{entry.title} (Boot{entry.entry_id})"
+                if (target == entry.entry_id.lower() or 
+                    target == f"boot{entry.entry_id.lower()}" or 
+                    target in [s.lower() for s in entry.slugs] or 
+                    target in entry.title.lower() or 
+                    target in entry.raw_title.lower()):
+                    matched = True
+            elif target == item_lower or target == f"boot{item_lower}":
+                matched = True
+
+        if matched:
+            to_remove.append(item)
+            restored_names.append(display_title)
+
+    if not to_remove:
+        return False, f"No hidden entry matches '{identifier}'."
+
+    new_hidden = [h for h in hidden if h not in to_remove]
+    config["hidden_entries"] = new_hidden
+    save_config(config)
+    names_str = ", ".join(restored_names)
+    return True, f"Restored: {names_str}"
+
+
+def unhide_all_entries() -> Tuple[bool, str]:
+    """Restore all hidden entries."""
+    config = load_config()
+    count = len(config.get("hidden_entries", []))
+    config["hidden_entries"] = []
+    save_config(config)
+    return True, f"Restored {count} hidden entries."
 
 
 def get_host_os_info() -> dict:
@@ -337,6 +474,25 @@ class UEFIManager:
                     return e
 
         return self.entries[0] if self.entries else None
+
+    def get_hidden_entries(self) -> List[Tuple[Optional[BootEntry], bool]]:
+        """
+        Return list of tuples (entry, is_firmware) that are currently hidden.
+        """
+        config = load_config()
+        hidden_list = config.get("hidden_entries", [])
+        if not hidden_list:
+            return []
+
+        results: List[Tuple[Optional[BootEntry], bool]] = []
+        for entry in self.entries:
+            if is_entry_hidden(entry, hidden_list, is_firmware=False):
+                results.append((entry, False))
+
+        if is_entry_hidden(None, hidden_list, is_firmware=True):
+            results.append((None, True))
+
+        return results
 
 
 def set_bootnext(entry_id: str, dry_run: bool = False) -> Tuple[bool, str]:

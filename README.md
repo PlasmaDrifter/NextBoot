@@ -35,13 +35,17 @@ The primary command is `nboot` (with `nextboot` available as an alias).
 | `nboot win` / `nboot windows` | Reboot into Windows |
 | `nboot fedora` / `nboot nobara` | Reboot into Fedora / Nobara |
 | `nboot bios` / `nboot uefi` | Reboot directly into UEFI/BIOS Firmware Setup |
-| `nboot ls` / `nboot list` | List all detected bootable OS entries and available shortcuts |
+| `nboot ls` / `nboot list` | List all detected bootable OS entries (use `-a` to include hidden) |
+| `nboot hide <target>` | Hide a boot entry from the main list (e.g., `nboot hide 0013`) |
+| `nboot unhide <target>` | Restore a hidden entry (use `nboot unhide all` to restore all) |
+| `nboot hidden` | List all currently hidden boot entries |
 | `nboot status` | Display current UEFI BootNext status and default target |
 | `nboot set-default <target>` | Set persistent default OS (e.g., `nboot set-default win`) |
 | `nboot gui` | Open the graphical interface |
 
 ### Command Flags
 
+- `-a`, `--all`: Show all entries including hidden ones in `nboot list`.
 - `-y`, `--now`: Skip confirmation prompt and reboot immediately (e.g. `nboot win -y`).
 - `-d`, `--dry-run`: Test target resolution and simulate action without modifying NVRAM or rebooting.
 - `-h`, `--help`: Display CLI help and options.
@@ -57,7 +61,8 @@ The interface presents:
 4. Direct entry to reboot into Motherboard UEFI Firmware Setup.
 5. A "One-click reboot" checkbox to toggle immediate rebooting when an entry is clicked.
 6. A **`?`** button (or `F1` shortcut) providing an instant reference of CLI commands dynamically generated from your active boot entries.
-7. Right-click context menu on any entry to create a Desktop shortcut, register an Application Menu launcher (for GNOME Dash / KDE Application Menu search and taskbar pinning), or copy its terminal command with host-specific hotkey instructions.
+7. Right-click context menu on any entry to create a Desktop shortcut, register an Application Menu launcher (for GNOME Dash / KDE Application Menu search and taskbar pinning), copy its terminal command, or **Hide Entry** to unclutter unwanted firmware tools.
+8. A **`Hidden (N)`** button in the top header whenever entries are hidden, opening the **Hidden Boot Entries** dialog to view and restore items individually or all at once.
 
 ## Installation
 
