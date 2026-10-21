@@ -14,6 +14,16 @@ TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
 
 echo "=== Installing NextBoot ==="
 
+# 0. System dependencies
+echo "0. Checking system dependencies..."
+if command -v pacman >/dev/null 2>&1; then
+    echo "Arch Linux detected. Ensuring efibootmgr, python-pyqt6, and qt6-wayland are installed..."
+    pacman -S --needed --noconfirm efibootmgr python-pyqt6 qt6-wayland 2>/dev/null || true
+elif command -v apt-get >/dev/null 2>&1; then
+    echo "Debian/Ubuntu detected. Ensuring efibootmgr and python3-pyqt6 are installed..."
+    apt-get update -y && apt-get install -y efibootmgr python3-pyqt6 2>/dev/null || true
+fi
+
 # 1. Privileged backend helper
 echo "1. Installing backend helper to /usr/local/libexec/nextboot-helper..."
 mkdir -p /usr/local/libexec
@@ -94,6 +104,24 @@ echo "7. Installing bash completion..."
 if [ -d /usr/share/bash-completion/completions ]; then
     install -m 644 "${SRC_DIR}/completions/nboot.bash" /usr/share/bash-completion/completions/nboot
     ln -sf /usr/share/bash-completion/completions/nboot /usr/share/bash-completion/completions/nextboot 2>/dev/null || true
+fi
+
+# 8. Hyprland configuration (Floating & centered window rule)
+if [ -n "$TARGET_HOME" ] && [ -d "$TARGET_HOME/.config/hypr" ]; then
+    HYPR_CONF="$TARGET_HOME/.config/hypr/hyprland.conf"
+    if [ -f "$HYPR_CONF" ]; then
+        if ! grep -q "class:\^(nextboot|NextBoot)\$" "$HYPR_CONF" 2>/dev/null; then
+            echo "8. Hyprland configuration detected. Adding floating window rule..."
+            cat << 'EOF' >> "$HYPR_CONF"
+
+# NextBoot Window Rule (Floating & Centered)
+windowrulev2 = float, class:^(nextboot|NextBoot)$
+windowrulev2 = size 580 585, class:^(nextboot|NextBoot)$
+windowrulev2 = center, class:^(nextboot|NextBoot)$
+EOF
+            chown "$TARGET_USER:$TARGET_USER" "$HYPR_CONF"
+        fi
+    fi
 fi
 
 echo "=== NextBoot successfully installed! ==="
