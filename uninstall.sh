@@ -26,10 +26,6 @@ rm -f /usr/share/bash-completion/completions/nextboot
 if [ -n "$TARGET_HOME" ]; then
     rm -f "$TARGET_HOME/.local/share/applications/nextboot.desktop"
     rm -f "$TARGET_HOME/.local/share/icons/hicolor/scalable/apps/nextboot.svg"
-    MENU_FILE="$TARGET_HOME/.config/menus/applications-kmenuedit.menu"
-    if [ -f "$MENU_FILE" ]; then
-        sed -i '/<Filename>nextboot.desktop<\/Filename>/d' "$MENU_FILE" 2>/dev/null || true
-    fi
 fi
 
 if command -v update-desktop-database >/dev/null 2>&1; then
@@ -37,6 +33,12 @@ if command -v update-desktop-database >/dev/null 2>&1; then
     if [ -n "$TARGET_HOME" ] && [ -d "$TARGET_HOME/.local/share/applications" ]; then
         update-desktop-database "$TARGET_HOME/.local/share/applications" 2>/dev/null || true
     fi
+fi
+
+if command -v kbuildsycoca6 >/dev/null 2>&1; then
+    kbuildsycoca6 --noincremental 2>/dev/null || true
+elif command -v kbuildsycoca5 >/dev/null 2>&1; then
+    kbuildsycoca5 --noincremental 2>/dev/null || true
 fi
 
 echo "=== NextBoot uninstalled successfully! ==="

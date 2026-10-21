@@ -53,21 +53,14 @@ echo "5. Installing executables to /usr/local/bin..."
 install -m 755 "${SRC_DIR}/nboot" /usr/local/bin/nboot
 ln -sf /usr/local/bin/nboot /usr/local/bin/nextboot
 
-# 6. Desktop entry for Local Tools category
-echo "6. Configuring desktop entry for 'Local Tools'..."
+# 6. Desktop entry for Utilities category
+echo "6. Configuring desktop entry for 'Utilities'..."
 mkdir -p /usr/local/share/applications
 install -m 644 "${SRC_DIR}/nextboot.desktop" /usr/local/share/applications/nextboot.desktop
 
 if [ -n "$TARGET_HOME" ]; then
     mkdir -p "$TARGET_HOME/.local/share/applications"
     install -m 644 -o "$TARGET_USER" -g "$TARGET_USER" "${SRC_DIR}/nextboot.desktop" "$TARGET_HOME/.local/share/applications/nextboot.desktop"
-    
-    MENU_FILE="$TARGET_HOME/.config/menus/applications-kmenuedit.menu"
-    if [ -f "$MENU_FILE" ]; then
-        if grep -q "kf5-help.directory" "$MENU_FILE" && ! grep -q "nextboot.desktop" "$MENU_FILE"; then
-            sed -i '/<Directory>kf5-help.directory<\/Directory>/!b;n;/<Include>/a \   <Filename>nextboot.desktop</Filename>' "$MENU_FILE"
-        fi
-    fi
 fi
 
 if command -v update-desktop-database >/dev/null 2>&1; then
@@ -75,6 +68,12 @@ if command -v update-desktop-database >/dev/null 2>&1; then
     if [ -n "$TARGET_HOME" ] && [ -d "$TARGET_HOME/.local/share/applications" ]; then
         update-desktop-database "$TARGET_HOME/.local/share/applications" 2>/dev/null || true
     fi
+fi
+
+if command -v kbuildsycoca6 >/dev/null 2>&1; then
+    kbuildsycoca6 --noincremental 2>/dev/null || true
+elif command -v kbuildsycoca5 >/dev/null 2>&1; then
+    kbuildsycoca5 --noincremental 2>/dev/null || true
 fi
 
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then

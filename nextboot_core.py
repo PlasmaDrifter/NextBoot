@@ -425,7 +425,7 @@ Comment=Reboot directly into {title} via NextBoot
 Exec=nboot {slug} -y
 Icon={icon_str}
 Terminal=false
-Categories=System;Utility;LocalTools;
+Categories=Utility;
 StartupNotify=true
 """
 
@@ -434,25 +434,6 @@ StartupNotify=true
         desktop_file.chmod(0o755)
 
         if target == "applications":
-            menu_file = home / ".config" / "menus" / "applications-kmenuedit.menu"
-            if menu_file.exists():
-                try:
-                    menu_text = menu_file.read_text(encoding="utf-8")
-                    entry_tag = f"<Filename>{desktop_file.name}</Filename>"
-                    if entry_tag not in menu_text:
-                        if "<Filename>nextboot.desktop</Filename>" in menu_text:
-                            menu_text = menu_text.replace(
-                                "<Filename>nextboot.desktop</Filename>",
-                                f"<Filename>nextboot.desktop</Filename>\n    {entry_tag}",
-                            )
-                            menu_file.write_text(menu_text, encoding="utf-8")
-                        elif "<Directory>kf5-help.directory</Directory>" in menu_text:
-                            pattern = r"(<Directory>kf5-help\.directory</Directory>\s*<Include>)"
-                            menu_text = re.sub(pattern, rf"\1\n    {entry_tag}", menu_text, count=1)
-                            menu_file.write_text(menu_text, encoding="utf-8")
-                except Exception:
-                    pass
-
             if shutil.which("update-desktop-database"):
                 try:
                     subprocess.run(
