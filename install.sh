@@ -32,11 +32,20 @@ fi
 
 # 3. Application libraries and assets
 echo "3. Installing application libraries and assets to /usr/local/share/nextboot..."
-mkdir -p /usr/local/share/nextboot/assets
+mkdir -p /usr/local/share/nextboot/assets/distros
 install -m 644 "${SRC_DIR}/nextboot_core.py" /usr/local/share/nextboot/
 install -m 644 "${SRC_DIR}/nextboot_cli.py" /usr/local/share/nextboot/
 install -m 644 "${SRC_DIR}/nextboot_gui.py" /usr/local/share/nextboot/
-install -m 644 "${SRC_DIR}"/assets/*.svg /usr/local/share/nextboot/assets/
+install -m 644 "${SRC_DIR}"/assets/*.svg /usr/local/share/nextboot/assets/ 2>/dev/null || true
+install -m 644 "${SRC_DIR}"/assets/*.png /usr/local/share/nextboot/assets/ 2>/dev/null || true
+cp -r "${SRC_DIR}/assets/distros/." /usr/local/share/nextboot/assets/distros/
+chmod 644 /usr/local/share/nextboot/assets/distros/*.svg
+
+if [ -n "$TARGET_HOME" ]; then
+    mkdir -p "$TARGET_HOME/.local/share/nextboot/assets/distros"
+    cp -r "${SRC_DIR}/assets/distros/." "$TARGET_HOME/.local/share/nextboot/assets/distros/"
+    chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.local/share/nextboot"
+fi
 
 # 4. Icon installation (grey/black arrow)
 echo "4. Installing grey-black arrow icon..."

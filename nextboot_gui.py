@@ -44,11 +44,21 @@ from nextboot_core import (
 )
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
+possible_assets = [
+    SCRIPT_DIR / "assets",
+    Path.home() / ".local" / "share" / "nextboot" / "assets",
+    Path("/usr/local/share/nextboot/assets"),
+    Path("/usr/share/nextboot/assets"),
+]
 ASSETS_DIR = SCRIPT_DIR / "assets"
-if not ASSETS_DIR.exists():
-    SYS_ASSETS = Path("/usr/local/share/nextboot/assets")
-    if SYS_ASSETS.exists():
-        ASSETS_DIR = SYS_ASSETS
+for p in possible_assets:
+    distros_folder = p / "distros"
+    try:
+        if distros_folder.is_dir() and any(distros_folder.iterdir()):
+            ASSETS_DIR = p
+            break
+    except Exception:
+        pass
 
 DISTROS_DIR = ASSETS_DIR / "distros"
 
