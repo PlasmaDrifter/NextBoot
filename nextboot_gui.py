@@ -151,20 +151,22 @@ class OSListRowWidget(QWidget):
         text_layout = QVBoxLayout()
         text_layout.setSpacing(2)
 
+        accent_orange = "#fb923c"
+
         if is_firmware_setup:
             title_text = "UEFI Firmware / BIOS Setup"
-            sub_text = "Reboots directly into motherboard firmware configuration"
+            sub_html = f"Reboots to BIOS / UEFI  ·  <span style='color: {accent_orange}; font-weight: 600;'>nboot uefi</span>"
         elif entry:
             title_text = entry.title
             sub_parts = [f"Boot{entry.entry_id}"]
             if entry.base_distro:
                 sub_parts.append(entry.base_distro)
             if entry.slugs:
-                sub_parts.append(f"nboot {entry.slugs[0]}")
-            sub_text = "  ·  ".join(sub_parts)
+                sub_parts.append(f"<span style='color: {accent_orange}; font-weight: 600;'>nboot {entry.slugs[0]}</span>")
+            sub_html = "  ·  ".join(sub_parts)
         else:
             title_text = "Unknown Entry"
-            sub_text = ""
+            sub_html = ""
 
         title_lbl = QLabel(title_text, self)
         title_font = QFont()
@@ -174,7 +176,9 @@ class OSListRowWidget(QWidget):
         title_lbl.setStyleSheet("color: #e6edf3; background: transparent;")
         text_layout.addWidget(title_lbl)
 
-        sub_lbl = QLabel(sub_text, self)
+        sub_lbl = QLabel(self)
+        sub_lbl.setTextFormat(Qt.TextFormat.RichText)
+        sub_lbl.setText(sub_html)
         sub_lbl.setStyleSheet("color: #7d8590; font-size: 11px; background: transparent;")
         text_layout.addWidget(sub_lbl)
 
