@@ -389,3 +389,62 @@ def execute_reboot(firmware_setup: bool = False, dry_run: bool = False) -> Tuple
         return True, "Reboot initiated."
     except Exception as e:
         return False, f"Failed to trigger reboot: {e}"
+
+
+def create_os_shortcut(
+    title: str,
+    slug: str,
+    icon_path: Optional[str] = None,
+    target: str = "desktop",
+) -> Tuple[bool, str]:
+    """
+    Generate an executable .desktop shortcut for rebooting into a specific OS.
+    target: 'desktop' (saves to ~/Desktop) or 'applications' (saves to ~/.local/share/applications)
+    """
+    home = Path.home()
+    if target == "desktop":
+        target_dir = home / "Desktop"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        clean_title = re.sub(r"[^\w\s-]", "", title).strip()
+        desktop_file = target_dir / f"Reboot into {clean_title}.desktop"
+    elif target == "applications":
+        target_dir = home / ".local" / "share" / "applications"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        clean_slug = re.sub(r"[^\w-]", "", slug).strip()
+        desktop_file = target_dir / f"nextboot-reboot-{clean_slug}.desktop"
+    else:
+        return False, f"Unknown target location: {target}"
+
+    icon_str = icon_path if (icon_path and Path(icon_path).exists()) else "nextboot"
+
+    content = f"""[Desktop Entry]
+Type=Application
+Name=Reboot into {title}
+GenericName=One-Time OS Reboot
+Comment=Reboot directly into {title} via NextBoot
+Exec=nboot {slug} -y
+Icon={icon_str}
+Terminal=false
+Categories=System;Utility;
+StartupNotify=true
+"""
+
+    try:
+        desktop_file.write_text(content, encoding="utf-8")
+        desktop_file.chmod(0o755)
+
+        if target == "applications" and shutil.which("update-desktop-database"):
+            try:
+                subprocess.run(
+                    ["update-desktop-database", str(target_dir)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    check=False,
+                )
+            except Exception:
+                pass
+
+        return True, str(desktop_file)
+    except Exception as e:
+        return False, f"Failed to create shortcut: {e}"
+

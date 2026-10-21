@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
-from PyQt6.QtCore import Qt, QSize, pyqtSignal
+from PyQt6.QtCore import Qt, QPoint, QSize, QTimer, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon, QKeyEvent
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import (
@@ -22,6 +22,7 @@ from PyQt6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QMenu,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -32,6 +33,7 @@ from PyQt6.QtWidgets import (
 from nextboot_core import (
     BootEntry,
     UEFIManager,
+    create_os_shortcut,
     execute_reboot,
     load_config,
     save_config,
@@ -581,6 +583,8 @@ class NextBootWindow(QWidget):
         self.list_widget = QListWidget(self)
         self.list_widget.setObjectName("bootList")
         self.list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
+        self.list_widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.list_widget.customContextMenuRequested.connect(self._show_context_menu)
         self.list_widget.currentItemChanged.connect(self._on_selection_changed)
         self.list_widget.itemClicked.connect(self._on_item_clicked)
         self.list_widget.itemDoubleClicked.connect(self._on_item_double_clicked)
@@ -714,11 +718,7 @@ class NextBootWindow(QWidget):
         dlg = CliHelpDialog(self.mgr, self)
         dlg.exec()
 
-    def _on_reboot_clicked(self):
-        data = self._get_selected_data()
-        if not data:
-            return
-
+    def _execute_reboot_for_data(self, data: dict):
         is_firmware = data["is_firmware"]
         entry: Optional[BootEntry] = data["entry"]
 
@@ -733,6 +733,82 @@ class NextBootWindow(QWidget):
 
         if not success:
             QMessageBox.critical(self, "Reboot Error", msg)
+
+    def _on_reboot_clicked(self):
+        data = self._get_selected_data()
+        if not data:
+            return
+        self._execute_reboot_for_data(data)
+
+    def _show_status_message(self, text: str, is_error: bool = False):
+        color = "#f85149" if is_error else "#58a6ff"
+        border = "#da3633" if is_error else "#1f6feb"
+        bg = "#161b22"
+        self.banner.setStyleSheet(
+            f"background-color: {bg}; color: {color}; border: 1px solid {border}; border-radius: 6px; padding: 6px 12px; font-size: 11px;"
+        )
+        self.banner.setText(text)
+        self.banner.setVisible(True)
+        QTimer.singleShot(4000, lambda: self.banner.setVisible(False))
+
+    def _create_shortcut(self, title: str, slug: str, icon_path: Path, target: str):
+        success, res = create_os_shortcut(title, slug, str(icon_path.resolve()), target=target)
+        if success:
+            loc = "Desktop" if target == "desktop" else "Application Menu"
+            self._show_status_message(f"Created shortcut for '{title}' on your {loc}.")
+        else:
+            self._show_status_message(f"Error creating shortcut: {res}", is_error=True)
+
+    def _copy_hotkey_command(self, slug: str):
+        cmd = f"nboot {slug} -y"
+        clipboard = QApplication.clipboard()
+        if clipboard:
+            clipboard.setText(cmd)
+            self._show_status_message(f"Copied '{cmd}' to clipboard - assign this in KDE Shortcuts.")
+
+    def _show_context_menu(self, pos: QPoint):
+        item = self.list_widget.itemAt(pos)
+        if not item:
+            return
+
+        row = self.list_widget.row(item)
+        if not (0 <= row < len(self.items_data)):
+            return
+
+        self.list_widget.setCurrentRow(row)
+
+        data = self.items_data[row]
+        is_firmware = data["is_firmware"]
+        entry: Optional[BootEntry] = data["entry"]
+
+        if is_firmware:
+            target_title = "UEFI Firmware Setup"
+            slug = "uefi"
+        else:
+            target_title = entry.title
+            slug = entry.slugs[0] if entry.slugs else entry.entry_id.lower()
+
+        icon_path = resolve_distro_icon_path(entry, is_firmware=is_firmware)
+
+        menu = QMenu(self)
+
+        reboot_act = menu.addAction(f"Reboot into {target_title}")
+        reboot_act.triggered.connect(lambda: self._execute_reboot_for_data(data))
+
+        menu.addSeparator()
+
+        desktop_act = menu.addAction("Create Desktop Shortcut")
+        desktop_act.triggered.connect(lambda: self._create_shortcut(target_title, slug, icon_path, "desktop"))
+
+        app_menu_act = menu.addAction("Add to Application Menu (KDE Search and Shortcuts)")
+        app_menu_act.triggered.connect(lambda: self._create_shortcut(target_title, slug, icon_path, "applications"))
+
+        menu.addSeparator()
+
+        copy_act = menu.addAction(f"Copy Command (nboot {slug} -y)")
+        copy_act.triggered.connect(lambda: self._copy_hotkey_command(slug))
+
+        menu.exec(self.list_widget.mapToGlobal(pos))
 
     def _apply_global_theme(self):
         self.setStyleSheet("""
@@ -897,6 +973,28 @@ class NextBootWindow(QWidget):
             }
             QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
                 background: none;
+            }
+            QMenu {
+                background-color: #161b22;
+                color: #c9d1d9;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+                padding: 4px;
+            }
+            QMenu::item {
+                background-color: transparent;
+                padding: 6px 16px 6px 12px;
+                border-radius: 4px;
+                font-size: 11px;
+            }
+            QMenu::item:selected {
+                background-color: #21262d;
+                color: #f0f6fc;
+            }
+            QMenu::separator {
+                height: 1px;
+                background-color: #30363d;
+                margin: 4px 6px;
             }
         """)
 
