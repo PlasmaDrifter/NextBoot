@@ -34,6 +34,7 @@ from nextboot_core import (
     BootEntry,
     UEFIManager,
     create_os_shortcut,
+    detect_desktop_environment,
     execute_reboot,
     load_config,
     save_config,
@@ -300,9 +301,15 @@ class CliHelpDialog(QDialog):
         header_layout.addWidget(subtitle)
         main_layout.addLayout(header_layout)
 
+        de = detect_desktop_environment()
+        if de == "gnome":
+            tip_desc = "Right-click any operating system in the list to add to GNOME Dash/Search or create desktop shortcuts."
+        else:
+            tip_desc = "Right-click any operating system in the list to create Desktop & Application Menu shortcuts."
+
         tip_box = QLabel(
-            "<span style='color: #fb923c; font-weight: 600;'>Tip:</span> "
-            "<span style='color: #c9d1d9;'>Right-click any operating system in the list to create Desktop & Application Menu shortcuts.</span>",
+            f"<span style='color: #fb923c; font-weight: 600;'>Tip:</span> "
+            f"<span style='color: #c9d1d9;'>{tip_desc}</span>",
             self,
         )
         tip_box.setTextFormat(Qt.TextFormat.RichText)
@@ -464,6 +471,7 @@ class NextBootWindow(QWidget):
         super().__init__()
         self.mgr = UEFIManager()
         self.config = load_config()
+        self.de = detect_desktop_environment()
         self.items_data: List[dict] = []
 
         self.setWindowTitle("NextBoot")
@@ -765,8 +773,13 @@ class NextBootWindow(QWidget):
     def _create_shortcut(self, title: str, slug: str, icon_path: Path, target: str):
         success, res = create_os_shortcut(title, slug, str(icon_path.resolve()), target=target)
         if success:
-            loc = "Desktop" if target == "desktop" else "Application Menu"
-            self._show_status_message(f"Created shortcut for '{title}' on your {loc}.")
+            if target == "desktop":
+                loc = "Desktop"
+            elif self.de == "gnome":
+                loc = "Application Menu (searchable in GNOME Dash)"
+            else:
+                loc = "Application Menu"
+            self._show_status_message(f"Created shortcut for '{title}' in your {loc}.")
         else:
             self._show_status_message(f"Error creating shortcut: {res}", is_error=True)
 
@@ -775,7 +788,13 @@ class NextBootWindow(QWidget):
         clipboard = QApplication.clipboard()
         if clipboard:
             clipboard.setText(cmd)
-            self._show_status_message(f"Copied '{cmd}' to clipboard - assign this in KDE Shortcuts.")
+            if self.de == "gnome":
+                guide = "assign this in GNOME Settings -> Keyboard -> Custom Shortcuts."
+            elif self.de == "kde":
+                guide = "assign this in KDE System Settings -> Shortcuts."
+            else:
+                guide = "assign this in your Keyboard Shortcuts settings."
+            self._show_status_message(f"Copied '{cmd}' to clipboard - {guide}")
 
     def _show_context_menu(self, pos: QPoint):
         item = self.list_widget.itemAt(pos)
@@ -806,7 +825,8 @@ class NextBootWindow(QWidget):
         desktop_act = menu.addAction("Create Desktop Shortcut")
         desktop_act.triggered.connect(lambda: self._create_shortcut(target_title, slug, icon_path, "desktop"))
 
-        app_menu_act = menu.addAction("Add to Application Menu")
+        app_menu_label = "Add to Application Menu (Pin to Dash)" if self.de == "gnome" else "Add to Application Menu"
+        app_menu_act = menu.addAction(app_menu_label)
         app_menu_act.triggered.connect(lambda: self._create_shortcut(target_title, slug, icon_path, "applications"))
 
         menu.addSeparator()

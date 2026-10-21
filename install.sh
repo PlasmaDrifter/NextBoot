@@ -58,7 +58,8 @@ echo "6. Configuring desktop entry for 'Local Tools'..."
 mkdir -p /usr/local/share/applications
 install -m 644 "${SRC_DIR}/nextboot.desktop" /usr/local/share/applications/nextboot.desktop
 
-if [ -n "$TARGET_HOME" ] && [ -d "$TARGET_HOME/.local/share/applications" ]; then
+if [ -n "$TARGET_HOME" ]; then
+    mkdir -p "$TARGET_HOME/.local/share/applications"
     install -m 644 -o "$TARGET_USER" -g "$TARGET_USER" "${SRC_DIR}/nextboot.desktop" "$TARGET_HOME/.local/share/applications/nextboot.desktop"
     
     MENU_FILE="$TARGET_HOME/.config/menus/applications-kmenuedit.menu"

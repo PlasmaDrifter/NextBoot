@@ -448,3 +448,29 @@ StartupNotify=true
     except Exception as e:
         return False, f"Failed to create shortcut: {e}"
 
+
+def detect_desktop_environment() -> str:
+    """
+    Detect the active Desktop Environment (e.g. 'gnome', 'kde', 'xfce', 'cinnamon', 'mate', 'cosmic', 'other').
+    """
+    curr = (
+        os.environ.get("XDG_CURRENT_DESKTOP", "")
+        or os.environ.get("DESKTOP_SESSION", "")
+        or os.environ.get("XDG_SESSION_DESKTOP", "")
+    ).lower()
+
+    if "gnome" in curr:
+        return "gnome"
+    if "kde" in curr or "plasma" in curr:
+        return "kde"
+    if "cinnamon" in curr:
+        return "cinnamon"
+    if "xfce" in curr:
+        return "xfce"
+    if "mate" in curr:
+        return "mate"
+    if "cosmic" in curr:
+        return "cosmic"
+    return "other"
+
+
