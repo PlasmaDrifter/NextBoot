@@ -641,13 +641,6 @@ class NextBootWindow(QWidget):
         title_vbox.addWidget(app_desc)
         header.addLayout(title_vbox, stretch=1)
 
-        self.refresh_btn = QPushButton("Refresh", self)
-        self.refresh_btn.setObjectName("subtleBtn")
-        self.refresh_btn.setFixedHeight(28)
-        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.refresh_btn.clicked.connect(self._refresh)
-        header.addWidget(self.refresh_btn)
-
         self.help_btn = QPushButton("?", self)
         self.help_btn.setObjectName("helpBtn")
         self.help_btn.setFixedSize(28, 28)
@@ -655,6 +648,13 @@ class NextBootWindow(QWidget):
         self.help_btn.setToolTip("CLI Commands Reference")
         self.help_btn.clicked.connect(self._show_cli_help)
         header.addWidget(self.help_btn)
+
+        self.refresh_btn = QPushButton("Refresh", self)
+        self.refresh_btn.setObjectName("subtleBtn")
+        self.refresh_btn.setFixedHeight(28)
+        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.refresh_btn.clicked.connect(self._refresh)
+        header.addWidget(self.refresh_btn)
 
         main_layout.addLayout(header)
 
