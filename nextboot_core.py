@@ -470,6 +470,17 @@ StartupNotify=true
         desktop_file.chmod(0o755)
 
         if target == "applications":
+            menu_file = home / ".config" / "menus" / "applications-kmenuedit.menu"
+            if menu_file.exists():
+                try:
+                    menu_text = menu_file.read_text(encoding="utf-8")
+                    pattern = rf"^\s*<Filename>{re.escape(desktop_file.name)}</Filename>\s*\n"
+                    new_text = re.sub(pattern, "", menu_text, flags=re.MULTILINE)
+                    if new_text != menu_text:
+                        menu_file.write_text(new_text, encoding="utf-8")
+                except Exception:
+                    pass
+
             if shutil.which("update-desktop-database"):
                 try:
                     subprocess.run(
