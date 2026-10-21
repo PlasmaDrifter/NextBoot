@@ -12,14 +12,17 @@ It utilizes the UEFI standard `BootNext` mechanism. Setting `BootNext` instructs
 ## Features
 
 - **One-Click Reboot**: Reboot into Windows or other operating systems from a native Qt GUI or terminal command.
+- **Top 100+ Distro Vector Logos**: Comprehensive built-in library of 105 vector SVG logos covering top DistroWatch distributions, BSD systems, and specialized operating systems with zero bloat (< 900 KB).
+- **Clean OS Filtering**: Intelligently distinguishes real bootable operating systems from raw motherboard hardware stubs (NVMe slots, SATA ports, PXE LAN) and internal firmware diagnostics.
+- **Hide & Restore Unwanted Entries**: Right-click to hide any entries you don't want to see; restore them individually or all at once via the bottom action bar.
 - **Desktop & Hotkey Shortcuts**: Right-click any OS entry to create an executable Desktop shortcut, add an Application Menu launcher (for GNOME Dash / KDE KRunner search and taskbar pinning), or copy its instant reboot command for global keybindings.
-- **Desktop Environment Intelligence**: Automatically detects active desktop environment (GNOME, KDE Plasma, XFCE, Cinnamon, MATE, COSMIC) and adapts menus, notifications, and shortcut guides dynamically.
+- **Desktop Environment & Wayland Intelligence**: Automatically adapts to GNOME, KDE Plasma, XFCE, Cinnamon, MATE, COSMIC, and Wayland/Hyprland compositors.
 - **Automatic Reversion**: Subsequent boots return to your default Linux environment without manual boot menu intervention.
 - **Smart Dynamic Detection**: Dynamically inspects UEFI NVRAM entries via `efibootmgr`. No hardcoded drive UUIDs or partition numbers.
 - **Interactive CLI Reference**: Built-in dialog (`?` button or `F1` shortcut) dynamically displays terminal commands tailored to your active boot entries with environment-aware tips.
 - **Universal Sudoers Support**: Compatible with both `%wheel` (Fedora, Nobara, Arch) and `%sudo` (Ubuntu, Debian) administrative groups.
 - **Detached Drive Friendly**: If a drive is temporarily disconnected, NextBoot detects its absence gracefully. As soon as the drive is reconnected or an OS is reinstalled, NextBoot picks it up automatically.
-- **Fast CLI Shorthands**: Intuitive commands like `nboot win`, `nboot fedora`, and `nboot bios`.
+- **Fast CLI Shorthands**: Intuitive commands like `nboot win`, `nboot fedora`, `nboot arch`, and `nboot bios`.
 - **UEFI Firmware Setup**: Quick reboot directly into motherboard BIOS/UEFI setup.
 - **Flexible Reboots**: Select an OS and click the action button, or toggle one-click rebooting for instant switching.
 
@@ -62,7 +65,7 @@ The interface presents:
 5. A "One-click reboot" checkbox to toggle immediate rebooting when an entry is clicked.
 6. A **`?`** button (or `F1` shortcut) providing an instant reference of CLI commands dynamically generated from your active boot entries.
 7. Right-click context menu on any entry to create a Desktop shortcut, register an Application Menu launcher (for GNOME Dash / KDE Application Menu search and taskbar pinning), copy its terminal command, or **Hide Entry** to unclutter unwanted firmware tools.
-8. A **`Hidden (N)`** button in the top header whenever entries are hidden, opening the **Hidden Boot Entries** dialog to view and restore items individually or all at once.
+8. A subtle grey **`Hidden (N)`** button in the center of the bottom action bar whenever entries are hidden, opening the **Hidden Boot Entries** dialog to view and restore items individually or all at once.
 
 ## Installation
 
@@ -84,13 +87,16 @@ cd NextBoot
 sudo ./install.sh
 ```
 
-The installer:
-1. Installs the privileged helper to `/usr/local/libexec/nextboot-helper`.
-2. Configures the scoped sudoers policy in `/etc/sudoers.d/99-nextboot` allowing members of `%wheel` and `%sudo` to set `BootNext` without a password prompt.
-3. Validates sudoers syntax with `visudo -cf`.
-4. Installs the core application and executables (`/usr/local/bin/nboot` and `/usr/local/bin/nextboot`).
-5. Installs the desktop launcher to `/usr/local/share/applications/nextboot.desktop`.
-6. Installs bash tab completions.
+The installer performs out-of-the-box setup:
+1. **Automated Package Dependencies**:
+   - On **Arch Linux**: Automatically installs `efibootmgr`, `python-pyqt6`, and `qt6-wayland` via `pacman -S --needed`.
+   - On **Debian / Ubuntu**: Automatically installs `efibootmgr` and `python3-pyqt6` via `apt-get`.
+2. **Hyprland Window Rules**: Automatically detects `~/.config/hypr/hyprland.conf` and registers floating and centered window rules so NextBoot floats out of the box instead of tiling.
+3. **Privileged Backend Helper**: Installs to `/usr/local/libexec/nextboot-helper`.
+4. **Scoped Sudoers Policy**: Configures `/etc/sudoers.d/99-nextboot` allowing members of `%wheel` and `%sudo` to set `BootNext` without a password prompt.
+5. **Core Application & 100+ Distro Logos**: Installs libraries and 105 vector SVG logos to `/usr/local/share/nextboot/`.
+6. **Binaries & Desktop Launcher**: Registers `/usr/local/bin/nboot`, `/usr/local/bin/nextboot`, and `/usr/local/share/applications/nextboot.desktop`.
+7. **Bash Shell Autocompletions**: Installs completions to `/usr/share/bash-completion/completions/nboot`.
 
 ## Uninstallation
 
