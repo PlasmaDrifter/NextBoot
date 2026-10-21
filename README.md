@@ -17,7 +17,6 @@ It utilizes the UEFI standard `BootNext` mechanism. Setting `BootNext` instructs
 - **Automatic Reversion**: Subsequent boots return to your default Linux environment without manual boot menu intervention.
 - **Smart Dynamic Detection**: Dynamically inspects UEFI NVRAM entries via `efibootmgr`. No hardcoded drive UUIDs or partition numbers.
 - **Interactive CLI Reference**: Built-in dialog (`?` button or `F1` shortcut) dynamically displays terminal commands tailored to your active boot entries with environment-aware tips.
-
 - **Universal Sudoers Support**: Compatible with both `%wheel` (Fedora, Nobara, Arch) and `%sudo` (Ubuntu, Debian) administrative groups.
 - **Detached Drive Friendly**: If a drive is temporarily disconnected, NextBoot detects its absence gracefully. As soon as the drive is reconnected or an OS is reinstalled, NextBoot picks it up automatically.
 - **Fast CLI Shorthands**: Intuitive commands like `nboot win`, `nboot fedora`, and `nboot bios`.
