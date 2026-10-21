@@ -11,11 +11,13 @@ It utilizes the UEFI standard `BootNext` mechanism. Setting `BootNext` instructs
 
 ## Features
 
-- **One-Click Reboot**: Reboot into Windows or other operating systems from a native KDE/Qt GUI or terminal command.
+- **One-Click Reboot**: Reboot into Windows or other operating systems from a native Qt GUI or terminal command.
+- **Desktop Environment Intelligence**: Automatically detects active desktop environment (GNOME, KDE Plasma, XFCE, Cinnamon, MATE, COSMIC) and adapts menus, notifications, and shortcut guides dynamically.
 - **Automatic Reversion**: Subsequent boots return to your default Linux environment without manual boot menu intervention.
 - **Smart Dynamic Detection**: Dynamically inspects UEFI NVRAM entries via `efibootmgr`. No hardcoded drive UUIDs or partition numbers.
-- **Interactive CLI Reference**: Built-in dialog (`?` button or `F1` shortcut) dynamically displays terminal commands tailored to your active boot entries.
-- **Desktop & Hotkey Shortcuts**: Right-click any OS entry to create an executable Desktop shortcut, add an Application Menu launcher (for KRunner/Start Menu search and taskbar pinning), or copy its instant reboot command for global keybindings.
+- **Interactive CLI Reference**: Built-in dialog (`?` button or `F1` shortcut) dynamically displays terminal commands tailored to your active boot entries with environment-aware tips.
+- **Desktop & Hotkey Shortcuts**: Right-click any OS entry to create an executable Desktop shortcut, add an Application Menu launcher (for GNOME Dash / KDE KRunner search and taskbar pinning), or copy its instant reboot command for global keybindings.
+- **Universal Sudoers Support**: Compatible with both `%wheel` (Fedora, Nobara, Arch) and `%sudo` (Ubuntu, Debian) administrative groups.
 - **Detached Drive Friendly**: If a drive is temporarily disconnected, NextBoot detects its absence gracefully. As soon as the drive is reconnected or an OS is reinstalled, NextBoot picks it up automatically.
 - **Persistent App Default**: Configure your preferred target OS once (e.g. Windows). NextBoot remembers it so you never have to re-select it every time.
 - **Fast CLI Shorthands**: Intuitive commands like `nboot win`, `nboot fedora`, and `nboot bios`.
@@ -56,7 +58,7 @@ The interface presents:
 4. Direct entry to reboot into Motherboard UEFI Firmware Setup.
 5. A "One-click reboot" checkbox to toggle immediate rebooting when an entry is clicked.
 6. A **`?`** button (or `F1` shortcut) providing an instant reference of CLI commands dynamically generated from your active boot entries.
-7. Right-click context menu on any entry to create a Desktop shortcut, register an Application Menu launcher (for search, taskbar pinning, and KDE shortcuts), or copy its terminal command.
+7. Right-click context menu on any entry to create a Desktop shortcut, register an Application Menu launcher (for GNOME Dash / KDE Application Menu search and taskbar pinning), or copy its terminal command with host-specific hotkey instructions.
 
 ## Installation
 
@@ -80,7 +82,7 @@ sudo ./install.sh
 
 The installer:
 1. Installs the privileged helper to `/usr/local/libexec/nextboot-helper`.
-2. Configures the scoped sudoers policy in `/etc/sudoers.d/99-nextboot` allowing members of `%wheel` to set `BootNext` without a password prompt.
+2. Configures the scoped sudoers policy in `/etc/sudoers.d/99-nextboot` allowing members of `%wheel` and `%sudo` to set `BootNext` without a password prompt.
 3. Validates sudoers syntax with `visudo -cf`.
 4. Installs the core application and executables (`/usr/local/bin/nboot` and `/usr/local/bin/nextboot`).
 5. Installs the desktop launcher to `/usr/local/share/applications/nextboot.desktop`.
