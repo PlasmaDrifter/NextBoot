@@ -5,7 +5,8 @@ NextBoot (`nboot`) is a lightweight graphical and command-line utility for Nobar
 It utilizes the UEFI standard `BootNext` mechanism. Setting `BootNext` instructs your motherboard to boot into the selected operating system for the next boot only. Once that operating system restarts or shuts down, your computer automatically returns to your regular default boot order (Nobara/Linux).
 
 <p align="center">
-  <img src="assets/screenshot.png" alt="NextBoot Graphical Interface" width="540">
+  <img src="assets/screenshot.png" alt="NextBoot Graphical Interface" width="420">
+  <img src="assets/cli_reference.png" alt="NextBoot CLI Commands Reference" width="420">
 </p>
 
 ## Features
@@ -13,6 +14,7 @@ It utilizes the UEFI standard `BootNext` mechanism. Setting `BootNext` instructs
 - **One-Click Reboot**: Reboot into Windows or other operating systems from a native KDE/Qt GUI or terminal command.
 - **Automatic Reversion**: Subsequent boots return to your default Linux environment without manual boot menu intervention.
 - **Smart Dynamic Detection**: Dynamically inspects UEFI NVRAM entries via `efibootmgr`. No hardcoded drive UUIDs or partition numbers.
+- **Interactive CLI Reference**: Built-in dialog (`?` button or `F1` shortcut) dynamically displays terminal commands tailored to your active boot entries.
 - **Detached Drive Friendly**: If a drive is temporarily disconnected, NextBoot detects its absence gracefully. As soon as the drive is reconnected or an OS is reinstalled, NextBoot picks it up automatically.
 - **Persistent App Default**: Configure your preferred target OS once (e.g. Windows). NextBoot remembers it so you never have to re-select it every time.
 - **Fast CLI Shorthands**: Intuitive commands like `nboot win`, `nboot fedora`, and `nboot bios`.
@@ -52,6 +54,7 @@ The interface presents:
 3. A button to reboot directly into the selected OS (or double-click to reboot).
 4. Direct entry to reboot into Motherboard UEFI Firmware Setup.
 5. A "Confirm before rebooting" checkbox to toggle instant reboots.
+6. A **`?`** button (or `F1` shortcut) providing an instant reference of CLI commands dynamically generated from your active boot entries.
 
 ## Installation
 
