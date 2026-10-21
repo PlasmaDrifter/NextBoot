@@ -16,12 +16,15 @@ from PyQt6.QtWidgets import (
     QApplication,
     QCheckBox,
     QDialog,
+    QFrame,
+    QGridLayout,
     QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -299,6 +302,238 @@ class ConfirmDialog(QDialog):
         layout.addLayout(btn_box)
 
 
+class CliHelpDialog(QDialog):
+    def __init__(self, mgr: UEFIManager, parent=None):
+        super().__init__(parent)
+        self.mgr = mgr
+        self.setWindowTitle("CLI Commands Reference - NextBoot")
+        self.setFixedSize(580, 600)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #161b22;
+                color: #c9d1d9;
+                font-family: system-ui, -apple-system, sans-serif;
+            }
+            QLabel#dialogTitle {
+                color: #f0f6fc;
+                font-size: 15px;
+                font-weight: bold;
+            }
+            QLabel#dialogSubtitle {
+                color: #7d8590;
+                font-size: 11px;
+            }
+            QLabel#sectionHeader {
+                color: #8b949e;
+                font-size: 10px;
+                font-weight: bold;
+                letter-spacing: 0.5px;
+                margin-top: 4px;
+            }
+            QFrame#cardBox {
+                background-color: #0d1117;
+                border: 1px solid #30363d;
+                border-radius: 6px;
+            }
+            QPushButton#closeBtn {
+                background-color: #21262d;
+                color: #f0f6fc;
+                font-size: 12px;
+                font-weight: 600;
+                border-radius: 6px;
+                padding: 6px 18px;
+                border: 1px solid #30363d;
+            }
+            QPushButton#closeBtn:hover {
+                background-color: #30363d;
+                border: 1px solid #484f58;
+            }
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: #0d1117;
+                width: 6px;
+                margin: 0;
+                border-radius: 3px;
+            }
+            QScrollBar::handle:vertical {
+                background: #30363d;
+                min-height: 24px;
+                border-radius: 3px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #484f58;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
+
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(22, 20, 22, 18)
+        main_layout.setSpacing(12)
+
+        # Header
+        header_layout = QVBoxLayout()
+        header_layout.setSpacing(3)
+        title = QLabel("CLI Commands Reference", self)
+        title.setObjectName("dialogTitle")
+        subtitle = QLabel("Run nboot in terminal to set one-time reboot targets", self)
+        subtitle.setObjectName("dialogSubtitle")
+        header_layout.addWidget(title)
+        header_layout.addWidget(subtitle)
+        main_layout.addLayout(header_layout)
+
+        # Scroll Area
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        content = QWidget()
+        content.setStyleSheet("background: transparent;")
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 2, 6, 2)
+        content_layout.setSpacing(10)
+
+        # 1. Detected Boot Targets
+        sec1_lbl = QLabel("DETECTED BOOT TARGETS", content)
+        sec1_lbl.setObjectName("sectionHeader")
+        content_layout.addWidget(sec1_lbl)
+
+        card1 = QFrame(content)
+        card1.setObjectName("cardBox")
+        grid1 = QGridLayout(card1)
+        grid1.setContentsMargins(12, 10, 12, 10)
+        grid1.setHorizontalSpacing(16)
+        grid1.setVerticalSpacing(7)
+
+        default_entry = self.mgr.get_default_entry()
+        row = 0
+
+        # Default reboot command
+        if default_entry:
+            cmd_def = QLabel("<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot</span>")
+            cmd_def.setTextFormat(Qt.TextFormat.RichText)
+            desc_def = QLabel(f"<span style='color: #c9d1d9; font-size: 11px;'>Reboot to default target ({default_entry.title})</span>")
+            desc_def.setTextFormat(Qt.TextFormat.RichText)
+            grid1.addWidget(cmd_def, row, 0, Qt.AlignmentFlag.AlignLeft)
+            grid1.addWidget(desc_def, row, 1, Qt.AlignmentFlag.AlignLeft)
+            row += 1
+
+        if not self.mgr.entries:
+            no_entries = QLabel("<span style='color: #8b949e; font-size: 11px;'>No active UEFI boot entries detected.</span>")
+            no_entries.setTextFormat(Qt.TextFormat.RichText)
+            grid1.addWidget(no_entries, row, 0, 1, 2)
+            row += 1
+        else:
+            for entry in self.mgr.entries:
+                slug = entry.slugs[0] if entry.slugs else entry.entry_id.lower()
+                is_def = (default_entry and entry.entry_id == default_entry.entry_id)
+                is_cur = (entry.entry_id == self.mgr.boot_current)
+
+                badges = []
+                if is_def:
+                    badges.append("<span style='color: #ea580c; font-size: 10px; font-weight: 700;'>[DEFAULT]</span>")
+                if is_cur:
+                    badges.append("<span style='color: #58a6ff; font-size: 10px; font-weight: 700;'>[CURRENT]</span>")
+                badge_html = (" " + " ".join(badges)) if badges else ""
+
+                cmd_lbl = QLabel(f"<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot {slug}</span>")
+                cmd_lbl.setTextFormat(Qt.TextFormat.RichText)
+                desc_lbl = QLabel(f"<span style='color: #8b949e; font-size: 11px;'>{entry.title} <span style='color: #6e7681;'>(Boot{entry.entry_id})</span>{badge_html}</span>")
+                desc_lbl.setTextFormat(Qt.TextFormat.RichText)
+
+                grid1.addWidget(cmd_lbl, row, 0, Qt.AlignmentFlag.AlignLeft)
+                grid1.addWidget(desc_lbl, row, 1, Qt.AlignmentFlag.AlignLeft)
+                row += 1
+
+        # BIOS / UEFI command
+        cmd_fw = QLabel("<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot bios | uefi</span>")
+        cmd_fw.setTextFormat(Qt.TextFormat.RichText)
+        desc_fw = QLabel("<span style='color: #8b949e; font-size: 11px;'>Reboot into UEFI Firmware / BIOS Setup</span>")
+        desc_fw.setTextFormat(Qt.TextFormat.RichText)
+        grid1.addWidget(cmd_fw, row, 0, Qt.AlignmentFlag.AlignLeft)
+        grid1.addWidget(desc_fw, row, 1, Qt.AlignmentFlag.AlignLeft)
+
+        grid1.setColumnStretch(1, 1)
+        content_layout.addWidget(card1)
+
+        # 2. Utility & Management
+        sec2_lbl = QLabel("UTILITY & MANAGEMENT", content)
+        sec2_lbl.setObjectName("sectionHeader")
+        content_layout.addWidget(sec2_lbl)
+
+        card2 = QFrame(content)
+        card2.setObjectName("cardBox")
+        grid2 = QGridLayout(card2)
+        grid2.setContentsMargins(12, 10, 12, 10)
+        grid2.setHorizontalSpacing(16)
+        grid2.setVerticalSpacing(7)
+
+        cmds = [
+            ("nboot list | ls", "List all bootable entries with IDs and aliases"),
+            ("nboot status", "Display current BootNext NVRAM status and boot order"),
+            ("nboot set-default &lt;target&gt;", "Set persistent default OS (e.g. nboot set-default windows)"),
+            ("nboot gui", "Launch NextBoot graphical interface"),
+        ]
+        for r, (c, d) in enumerate(cmds):
+            c_lbl = QLabel(f"<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>{c}</span>")
+            c_lbl.setTextFormat(Qt.TextFormat.RichText)
+            d_lbl = QLabel(f"<span style='color: #8b949e; font-size: 11px;'>{d}</span>")
+            d_lbl.setTextFormat(Qt.TextFormat.RichText)
+            grid2.addWidget(c_lbl, r, 0, Qt.AlignmentFlag.AlignLeft)
+            grid2.addWidget(d_lbl, r, 1, Qt.AlignmentFlag.AlignLeft)
+        grid2.setColumnStretch(1, 1)
+        content_layout.addWidget(card2)
+
+        # 3. Flags & Options
+        sec3_lbl = QLabel("FLAGS & OPTIONS", content)
+        sec3_lbl.setObjectName("sectionHeader")
+        content_layout.addWidget(sec3_lbl)
+
+        card3 = QFrame(content)
+        card3.setObjectName("cardBox")
+        grid3 = QGridLayout(card3)
+        grid3.setContentsMargins(12, 10, 12, 10)
+        grid3.setHorizontalSpacing(16)
+        grid3.setVerticalSpacing(7)
+
+        flags = [
+            ("-y, --now", "Reboot immediately without confirmation prompt"),
+            ("-d, --dry-run", "Simulate command without modifying NVRAM or rebooting"),
+            ("-h, --help", "Display CLI help output"),
+        ]
+        for r, (f, d) in enumerate(flags):
+            f_lbl = QLabel(f"<span style='color: #58a6ff; font-family: monospace; font-size: 12px; font-weight: bold;'>{f}</span>")
+            f_lbl.setTextFormat(Qt.TextFormat.RichText)
+            d_lbl = QLabel(f"<span style='color: #8b949e; font-size: 11px;'>{d}</span>")
+            d_lbl.setTextFormat(Qt.TextFormat.RichText)
+            grid3.addWidget(f_lbl, r, 0, Qt.AlignmentFlag.AlignLeft)
+            grid3.addWidget(d_lbl, r, 1, Qt.AlignmentFlag.AlignLeft)
+        grid3.setColumnStretch(1, 1)
+        content_layout.addWidget(card3)
+
+        content_layout.addStretch()
+        scroll.setWidget(content)
+        main_layout.addWidget(scroll, stretch=1)
+
+        # Footer
+        footer = QHBoxLayout()
+        hint = QLabel("<span style='color: #7d8590; font-size: 11px;'>Example: <span style='font-family: monospace; color: #c9d1d9;'>nboot windows --now</span></span>")
+        hint.setTextFormat(Qt.TextFormat.RichText)
+        footer.addWidget(hint)
+        footer.addStretch()
+
+        close_btn = QPushButton("Close", self)
+        close_btn.setObjectName("closeBtn")
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.clicked.connect(self.accept)
+        footer.addWidget(close_btn)
+        main_layout.addLayout(footer)
+
+
 class NextBootWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -366,6 +601,11 @@ class NextBootWindow(QWidget):
                 event.accept()
                 return
 
+        elif key in (Qt.Key.Key_Question, Qt.Key.Key_F1):
+            self._show_cli_help()
+            event.accept()
+            return
+
         super().keyPressEvent(event)
 
     def _build_ui(self):
@@ -375,7 +615,7 @@ class NextBootWindow(QWidget):
 
         # 1. Header Bar with Grey-Black Arrow Brand
         header = QHBoxLayout()
-        header.setSpacing(12)
+        header.setSpacing(8)
 
         icon_path = ASSETS_DIR / "app_icon.svg"
         if icon_path.exists():
@@ -403,8 +643,18 @@ class NextBootWindow(QWidget):
 
         self.refresh_btn = QPushButton("Refresh", self)
         self.refresh_btn.setObjectName("subtleBtn")
+        self.refresh_btn.setFixedHeight(28)
+        self.refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self.refresh_btn.clicked.connect(self._refresh)
         header.addWidget(self.refresh_btn)
+
+        self.help_btn = QPushButton("?", self)
+        self.help_btn.setObjectName("helpBtn")
+        self.help_btn.setFixedSize(28, 28)
+        self.help_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.help_btn.setToolTip("CLI Commands Reference")
+        self.help_btn.clicked.connect(self._show_cli_help)
+        header.addWidget(self.help_btn)
 
         main_layout.addLayout(header)
 
@@ -543,6 +793,10 @@ class NextBootWindow(QWidget):
     def _refresh(self):
         self._load_list()
 
+    def _show_cli_help(self):
+        dlg = CliHelpDialog(self.mgr, self)
+        dlg.exec()
+
     def _on_reboot_clicked(self):
         data = self._get_selected_data()
         if not data:
@@ -628,6 +882,22 @@ class NextBootWindow(QWidget):
             QPushButton#subtleBtn:hover {
                 background-color: #30363d;
                 color: #f0f6fc;
+            }
+            QPushButton#helpBtn {
+                background-color: #21262d;
+                color: #c9d1d9;
+                font-size: 13px;
+                font-weight: bold;
+                border-radius: 6px;
+                border: 1px solid #30363d;
+            }
+            QPushButton#helpBtn:hover {
+                background-color: #30363d;
+                color: #f0f6fc;
+                border: 1px solid #484f58;
+            }
+            QPushButton#helpBtn:pressed {
+                background-color: #161b22;
             }
             QPushButton#actionRebootBtn {
                 background-color: #21262d;
