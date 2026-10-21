@@ -531,6 +531,10 @@ def detect_desktop_environment() -> str:
         return "mate"
     if "cosmic" in curr:
         return "cosmic"
+    if "hyprland" in curr or "hypr" in curr:
+        return "hyprland"
+    if "sway" in curr:
+        return "sway"
     return "other"
 
 

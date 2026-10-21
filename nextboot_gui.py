@@ -794,6 +794,8 @@ class NextBootWindow(QWidget):
                 guide = "assign this in GNOME Settings -> Keyboard -> Custom Shortcuts."
             elif self.de == "kde":
                 guide = "assign this in KDE System Settings -> Shortcuts."
+            elif self.de == "hyprland":
+                guide = f"bind this in ~/.config/hypr/hyprland.conf (e.g. exec, {cmd})."
             else:
                 guide = "assign this in your Keyboard Shortcuts settings."
             self._show_status_message(f"Copied '{cmd}' to clipboard - {guide}")
@@ -1028,6 +1030,10 @@ class NextBootWindow(QWidget):
 
 
 def launch_gui():
+    os.environ.setdefault("QT_AUTO_SCREEN_SCALE_FACTOR", "1")
+    if os.environ.get("WAYLAND_DISPLAY") and "QT_QPA_PLATFORM" not in os.environ:
+        os.environ["QT_QPA_PLATFORM"] = "wayland;xcb"
+
     app = QApplication.instance()
     if not app:
         app = QApplication(sys.argv)

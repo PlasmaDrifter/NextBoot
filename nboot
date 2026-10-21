@@ -17,19 +17,42 @@ if os.path.isdir(sys_lib) and sys_lib not in sys.path:
     sys.path.append(sys_lib)
 
 from nextboot_cli import main as cli_main
-from nextboot_gui import launch_gui
+
+
+def _safe_launch_gui():
+    # If no graphical display is present (e.g. headless SSH session), provide a helpful message
+    if not os.environ.get("WAYLAND_DISPLAY") and not os.environ.get("DISPLAY"):
+        print("NextBoot GUI Error: No graphical display detected ($WAYLAND_DISPLAY or $DISPLAY is not set).", file=sys.stderr)
+        print("If you are connected over SSH or in a TTY, use the CLI commands (e.g. 'nboot list' or 'nboot <target>').", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        from nextboot_gui import launch_gui
+        launch_gui()
+    except ImportError as e:
+        print(f"NextBoot GUI Error: Required GUI dependencies are missing ({e}).", file=sys.stderr)
+        print("Please install PyQt6 dependencies:", file=sys.stderr)
+        print("  - Arch / Omarchy: sudo pacman -S python-pyqt6 qt6-svg qt6-wayland", file=sys.stderr)
+        print("  - Fedora / Nobara: sudo dnf install python3-pyqt6 qt6-qtsvg", file=sys.stderr)
+        print("  - Debian / Ubuntu: sudo apt install python3-pyqt6 python3-pyqt6.qtsvg", file=sys.stderr)
+        print("You can always use the CLI with 'nboot list' or 'nboot <target>'.", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"NextBoot GUI Error: Failed to launch interface: {e}", file=sys.stderr)
+        sys.exit(1)
+
 
 if __name__ == "__main__":
     args = sys.argv[1:]
 
     # Explicit GUI request
     if args and args[0] in ["gui", "-g", "--gui"]:
-        launch_gui()
+        _safe_launch_gui()
         sys.exit(0)
 
     # If launched without arguments and not attached to a terminal, open GUI
     if not args and not sys.stdin.isatty() and (os.environ.get("WAYLAND_DISPLAY") or os.environ.get("DISPLAY")):
-        launch_gui()
+        _safe_launch_gui()
         sys.exit(0)
 
     # Standard CLI execution
