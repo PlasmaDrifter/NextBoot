@@ -19,7 +19,6 @@ It utilizes the UEFI standard `BootNext` mechanism. Setting `BootNext` instructs
 - **Desktop & Hotkey Shortcuts**: Right-click any OS entry to create an executable Desktop shortcut, add an Application Menu launcher (for GNOME Dash / KDE KRunner search and taskbar pinning), or copy its instant reboot command for global keybindings.
 - **Universal Sudoers Support**: Compatible with both `%wheel` (Fedora, Nobara, Arch) and `%sudo` (Ubuntu, Debian) administrative groups.
 - **Detached Drive Friendly**: If a drive is temporarily disconnected, NextBoot detects its absence gracefully. As soon as the drive is reconnected or an OS is reinstalled, NextBoot picks it up automatically.
-- **Persistent App Default**: Configure your preferred target OS once (e.g. Windows). NextBoot remembers it so you never have to re-select it every time.
 - **Fast CLI Shorthands**: Intuitive commands like `nboot win`, `nboot fedora`, and `nboot bios`.
 - **UEFI Firmware Setup**: Quick reboot directly into motherboard BIOS/UEFI setup.
 - **Flexible Reboots**: Select an OS and click the action button, or toggle one-click rebooting for instant switching.
