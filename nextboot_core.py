@@ -54,7 +54,7 @@ def load_config() -> dict:
     config_file = get_config_path()
     default_config = {
         "default_target": "windows",
-        "confirm_prompt": True,
+        "one_click_reboot": False,
         "window_width": 580,
         "window_height": 585,
     }

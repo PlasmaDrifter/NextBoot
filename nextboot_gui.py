@@ -214,94 +214,6 @@ class OSListRowWidget(QWidget):
         layout.addLayout(badge_box)
 
 
-class ConfirmDialog(QDialog):
-    def __init__(self, target_title: str, is_firmware: bool = False, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Confirm Reboot - NextBoot")
-        self.setFixedSize(420, 190)
-        self.setModal(True)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #161b22;
-                color: #c9d1d9;
-                font-family: system-ui, -apple-system, sans-serif;
-            }
-            QLabel#dialogTitle {
-                color: #f0f6fc;
-                font-size: 14px;
-                font-weight: bold;
-                background: transparent;
-            }
-            QLabel#dialogBody {
-                color: #8b949e;
-                font-size: 12px;
-                line-height: 1.4;
-                background: transparent;
-            }
-            QPushButton#confirmBtn {
-                background-color: #21262d;
-                color: #f0f6fc;
-                font-weight: bold;
-                border-radius: 6px;
-                padding: 7px 16px;
-                border: 1px solid #484f58;
-            }
-            QPushButton#confirmBtn:hover {
-                background-color: #30363d;
-            }
-            QPushButton#cancelBtn {
-                background-color: transparent;
-                color: #8b949e;
-                border-radius: 6px;
-                padding: 7px 16px;
-                border: 1px solid #30363d;
-            }
-            QPushButton#cancelBtn:hover {
-                background-color: #21262d;
-                color: #c9d1d9;
-            }
-        """)
-
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 20, 22, 20)
-        layout.setSpacing(12)
-
-        title = QLabel("Confirm Immediate Reboot", self)
-        title.setObjectName("dialogTitle")
-        layout.addWidget(title)
-
-        if is_firmware:
-            msg = "Reboot directly into Motherboard UEFI / BIOS Setup now?\nAny unsaved application work will be lost."
-        else:
-            msg = (
-                f"Reboot into '{target_title}' now?\n\n"
-                "System will boot this entry once, then return to Nobara on subsequent reboots."
-            )
-
-        body = QLabel(msg, self)
-        body.setObjectName("dialogBody")
-        body.setWordWrap(True)
-        layout.addWidget(body)
-
-        layout.addStretch()
-
-        btn_box = QHBoxLayout()
-        btn_box.addStretch()
-
-        cancel_btn = QPushButton("Cancel", self)
-        cancel_btn.setObjectName("cancelBtn")
-        cancel_btn.clicked.connect(self.reject)
-        btn_box.addWidget(cancel_btn)
-
-        confirm_btn = QPushButton("Reboot", self)
-        confirm_btn.setObjectName("confirmBtn")
-        confirm_btn.setDefault(True)
-        confirm_btn.clicked.connect(self.accept)
-        btn_box.addWidget(confirm_btn)
-
-        layout.addLayout(btn_box)
-
-
 class CliHelpDialog(QDialog):
     def __init__(self, mgr: UEFIManager, parent=None):
         super().__init__(parent)
@@ -670,6 +582,7 @@ class NextBootWindow(QWidget):
         self.list_widget.setObjectName("bootList")
         self.list_widget.setSelectionMode(QListWidget.SelectionMode.SingleSelection)
         self.list_widget.currentItemChanged.connect(self._on_selection_changed)
+        self.list_widget.itemClicked.connect(self._on_item_clicked)
         self.list_widget.itemDoubleClicked.connect(self._on_item_double_clicked)
         main_layout.addWidget(self.list_widget, stretch=1)
 
@@ -678,12 +591,12 @@ class NextBootWindow(QWidget):
         bottom_row.setSpacing(12)
         bottom_row.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
-        self.confirm_chk = QCheckBox("Confirm before rebooting", self)
-        self.confirm_chk.setObjectName("confirmCheckbox")
-        self.confirm_chk.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.confirm_chk.setChecked(bool(self.config.get("confirm_prompt", True)))
-        self.confirm_chk.toggled.connect(self._on_confirm_toggled)
-        bottom_row.addWidget(self.confirm_chk)
+        self.one_click_chk = QCheckBox("One-click reboot", self)
+        self.one_click_chk.setObjectName("oneClickCheckbox")
+        self.one_click_chk.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.one_click_chk.setChecked(bool(self.config.get("one_click_reboot", False)))
+        self.one_click_chk.toggled.connect(self._on_one_click_toggled)
+        bottom_row.addWidget(self.one_click_chk)
 
         bottom_row.addStretch()
 
@@ -697,16 +610,16 @@ class NextBootWindow(QWidget):
 
         main_layout.addLayout(bottom_row)
 
-    def _on_confirm_toggled(self, checked: bool):
-        self.config["confirm_prompt"] = checked
+    def _on_one_click_toggled(self, checked: bool):
+        self.config["one_click_reboot"] = checked
         save_config(self.config)
 
     def _load_list(self):
         self.mgr.refresh()
         self.config = load_config()
-        self.confirm_chk.blockSignals(True)
-        self.confirm_chk.setChecked(bool(self.config.get("confirm_prompt", True)))
-        self.confirm_chk.blockSignals(False)
+        self.one_click_chk.blockSignals(True)
+        self.one_click_chk.setChecked(bool(self.config.get("one_click_reboot", False)))
+        self.one_click_chk.blockSignals(False)
         self.list_widget.clear()
         self.items_data.clear()
 
@@ -787,6 +700,10 @@ class NextBootWindow(QWidget):
             entry: BootEntry = data["entry"]
             self.reboot_btn.setText(f"Reboot into {entry.title}")
 
+    def _on_item_clicked(self, item: QListWidgetItem):
+        if self.one_click_chk.isChecked():
+            self._on_reboot_clicked()
+
     def _on_item_double_clicked(self, item: QListWidgetItem):
         self._on_reboot_clicked()
 
@@ -804,13 +721,6 @@ class NextBootWindow(QWidget):
 
         is_firmware = data["is_firmware"]
         entry: Optional[BootEntry] = data["entry"]
-        target_title = "UEFI Firmware Setup" if is_firmware else entry.title
-
-        require_confirm = bool(self.config.get("confirm_prompt", True))
-        if require_confirm:
-            dlg = ConfirmDialog(target_title, is_firmware=is_firmware, parent=self)
-            if dlg.exec() != QDialog.DialogCode.Accepted:
-                return
 
         if is_firmware:
             success, msg = execute_reboot(firmware_setup=True, dry_run=False)
@@ -915,27 +825,27 @@ class NextBootWindow(QWidget):
             QPushButton#actionRebootBtn:pressed {
                 background-color: #161b22;
             }
-            QCheckBox#confirmCheckbox {
+            QCheckBox#oneClickCheckbox {
                 color: #7d8590;
                 font-size: 11px;
                 spacing: 8px;
                 background: transparent;
             }
-            QCheckBox#confirmCheckbox:hover {
+            QCheckBox#oneClickCheckbox:hover {
                 color: #c9d1d9;
             }
-            QCheckBox#confirmCheckbox::indicator {
+            QCheckBox#oneClickCheckbox::indicator {
                 width: 15px;
                 height: 15px;
                 border-radius: 4px;
                 border: 1px solid #484f58;
                 background-color: #21262d;
             }
-            QCheckBox#confirmCheckbox::indicator:hover {
+            QCheckBox#oneClickCheckbox::indicator:hover {
                 border: 1px solid #6e7681;
                 background-color: #30363d;
             }
-            QCheckBox#confirmCheckbox::indicator:checked {
+            QCheckBox#oneClickCheckbox::indicator:checked {
                 background-color: #ea580c;
                 border: 1px solid #fb923c;
                 image: url(""" + str(ASSETS_DIR / "checkmark.svg") + """);

@@ -19,7 +19,7 @@ It utilizes the UEFI standard `BootNext` mechanism. Setting `BootNext` instructs
 - **Persistent App Default**: Configure your preferred target OS once (e.g. Windows). NextBoot remembers it so you never have to re-select it every time.
 - **Fast CLI Shorthands**: Intuitive commands like `nboot win`, `nboot fedora`, and `nboot bios`.
 - **UEFI Firmware Setup**: Quick reboot directly into motherboard BIOS/UEFI setup.
-- **Safe by Design**: Confirms intent before rebooting to prevent accidental data loss.
+- **Flexible Reboots**: Select an OS and click the action button, or toggle one-click rebooting for instant switching.
 
 ## CLI Usage
 
@@ -53,7 +53,7 @@ The interface presents:
 2. An active `CURRENT` badge indicating the currently running system.
 3. A button to reboot directly into the selected OS (or double-click to reboot).
 4. Direct entry to reboot into Motherboard UEFI Firmware Setup.
-5. A "Confirm before rebooting" checkbox to toggle instant reboots.
+5. A "One-click reboot" checkbox to toggle immediate rebooting when an entry is clicked.
 6. A **`?`** button (or `F1` shortcut) providing an instant reference of CLI commands dynamically generated from your active boot entries.
 
 ## Installation
