@@ -89,6 +89,7 @@ def resolve_distro_icon_path(entry: Optional[BootEntry], is_firmware: bool = Fal
 
         # 3. Specific Arch derivatives
         (["cachy"], "cachyos.svg"),
+        (["omarchy"], "omarchy.svg"),
         (["endeavour"], "endeavouros.svg"),
         (["garuda"], "garuda.svg"),
         (["chimeraos", "chimera"], "chimeraos.svg"),
@@ -192,7 +193,7 @@ def resolve_distro_icon_path(entry: Optional[BootEntry], is_firmware: bool = Fal
 
         # 9. Major Base Distributions
         (["fedora"], "fedora.svg"),
-        (["arch", "omarchy"], "arch.svg"),
+        (["arch"], "arch.svg"),
         (["ubuntu"], "ubuntu.svg"),
         (["debian"], "debian.svg"),
         (["rhel", "redhat", "red hat"], "rhel.svg"),
