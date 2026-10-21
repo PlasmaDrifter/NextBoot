@@ -385,23 +385,16 @@ class NextBootWindow(QWidget):
             header.addWidget(brand_icon)
 
         title_vbox = QVBoxLayout()
-        title_row = QHBoxLayout()
-        title_row.setSpacing(8)
-        title_row.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom)
+        title_vbox.setSpacing(2)
 
-        app_title = QLabel("NextBoot", self)
+        app_title = QLabel(
+            f"<span style='font-size: 16px; font-weight: bold; color: #f0f6fc;'>NextBoot</span> "
+            f"<span style='font-size: 11px; font-weight: 600; color: #7d8590;'>{__version__}</span>",
+            self,
+        )
+        app_title.setTextFormat(Qt.TextFormat.RichText)
         app_title.setObjectName("appTitle")
-        app_font = QFont()
-        app_font.setPointSize(16)
-        app_font.setBold(True)
-        app_title.setFont(app_font)
-        title_row.addWidget(app_title)
-
-        ver_lbl = QLabel(__version__, self)
-        ver_lbl.setStyleSheet("color: #7d8590; font-size: 11px; font-weight: 600; margin-bottom: 2px;")
-        title_row.addWidget(ver_lbl)
-
-        title_vbox.addLayout(title_row)
+        title_vbox.addWidget(app_title)
 
         app_desc = QLabel("One-Time OS Reboot Utility", self)
         app_desc.setObjectName("appSubtitle")
