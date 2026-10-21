@@ -221,7 +221,7 @@ class CliHelpDialog(QDialog):
         super().__init__(parent)
         self.mgr = mgr
         self.setWindowTitle("CLI Commands Reference - NextBoot")
-        self.setFixedSize(580, 600)
+        self.setFixedSize(580, 640)
         self.setStyleSheet("""
             QDialog {
                 background-color: #161b22;
@@ -299,6 +299,17 @@ class CliHelpDialog(QDialog):
         header_layout.addWidget(title)
         header_layout.addWidget(subtitle)
         main_layout.addLayout(header_layout)
+
+        tip_box = QLabel(
+            "<span style='color: #fb923c; font-weight: 600;'>Tip:</span> "
+            "<span style='color: #c9d1d9;'>Right-click any operating system in the list to create Desktop & Application Menu shortcuts.</span>",
+            self,
+        )
+        tip_box.setTextFormat(Qt.TextFormat.RichText)
+        tip_box.setStyleSheet(
+            "background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 7px 10px; font-size: 11px;"
+        )
+        main_layout.addWidget(tip_box)
 
         # Scroll Area
         scroll = QScrollArea(self)
