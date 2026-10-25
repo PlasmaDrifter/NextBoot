@@ -1,6 +1,6 @@
 # NextBoot
 
-NextBoot (`nboot`) is a lightweight graphical and command-line utility for Nobara and Linux systems that enables one-click and shorthand rebooting into Windows or any other operating system installed on your computer.
+NextBoot (`nboot`) is a lightweight graphical and command-line utility for Linux systems that enables one-click and shorthand rebooting into Windows or any other operating system installed on your computer.
 
 It utilizes the UEFI standard `BootNext` mechanism. Setting `BootNext` instructs your motherboard to boot into the selected operating system for the next boot only. Once that operating system restarts or shuts down, your computer automatically returns to your regular default boot order (Nobara/Linux).
 
