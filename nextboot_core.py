@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
-__version__ = "v0.7.4"
+__version__ = "v0.7.5"
 
 KNOWN_SUBDISTROS = {
     "cachy": ("CachyOS", "Based on Arch Linux", ["cachyos", "cachy", "arch"]),
@@ -499,6 +499,24 @@ class BootEntry:
         slugs.append(self.entry_id.lower())
         slugs.append(f"boot{self.entry_id.lower()}")
         return slugs
+
+    def get_short_slugs(self) -> List[str]:
+        """Return clean, user-friendly shorthand CLI slugs and aliases."""
+        short_slugs = []
+        for s in self.slugs:
+            s_clean = s.strip().lower()
+            if s_clean in (self.entry_id.lower(), f"boot{self.entry_id.lower()}"):
+                continue
+            if len(s_clean) > 20 or s_clean.startswith("uefi-") or "-partition-" in s_clean:
+                continue
+            if "-" in s_clean and len(s_clean) > 10:
+                continue
+            if s_clean not in short_slugs:
+                short_slugs.append(s_clean)
+        if not short_slugs:
+            short_slugs = [self.slugs[0] if self.slugs else self.entry_id.lower()]
+        return short_slugs
+
 
     def matches(self, query: str) -> bool:
         q = query.strip().lower().lstrip("-")

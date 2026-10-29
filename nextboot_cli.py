@@ -38,8 +38,8 @@ def cmd_list(mgr: UEFIManager, show_all: bool = False):
     else:
         print("Pending BootNext  : None (standard boot)\n")
 
-    print(f"{'BOOT ID':<10} {'STATUS':<18} {'OS TITLE':<32} {'CLI SHORTHAND'}")
-    print("-" * 75)
+    print(f"{'BOOT ID':<10} {'STATUS':<18} {'OS TITLE':<30} {'CLI SHORTHAND'}")
+    print("-" * 88)
 
     config = load_config()
     hidden_list = config.get("hidden_entries", [])
@@ -70,12 +70,12 @@ def cmd_list(mgr: UEFIManager, show_all: bool = False):
             status_flags.append("HIDDEN")
 
         status_str = ", ".join(status_flags) if status_flags else "READY"
-        primary_slug = entry.slugs[0] if entry.slugs else entry.entry_id.lower()
-        shorthand_str = f"nboot {primary_slug}"
+        short_slugs = entry.get_short_slugs()
+        shorthand_str = "nboot " + " | ".join(short_slugs)
 
-        print(f"Boot{entry.entry_id:<6} {status_str:<18} {entry.title:<32} {shorthand_str}")
+        print(f"Boot{entry.entry_id:<6} {status_str:<18} {entry.title:<30} {shorthand_str}")
 
-    print("-" * 75)
+    print("-" * 88)
     print("Special shortcuts: nboot bios | nboot uefi (Reboots into BIOS/UEFI setup)")
     if hidden_count > 0 and not show_all:
         print(f"Note: {hidden_count} entries are hidden. Run 'nboot list --all' or 'nboot hidden' to view.")

@@ -11,6 +11,11 @@ script_dir = os.path.dirname(os.path.realpath(__file__))
 if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
+# User local installation directory
+user_lib = os.path.expanduser("~/.local/share/nextboot")
+if os.path.isdir(user_lib) and user_lib not in sys.path:
+    sys.path.append(user_lib)
+
 # Fallback to system installation directory
 sys_lib = "/usr/local/share/nextboot"
 if os.path.isdir(sys_lib) and sys_lib not in sys.path:

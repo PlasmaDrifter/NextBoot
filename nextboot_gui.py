@@ -405,9 +405,9 @@ class CliHelpDialog(QDialog):
 
         de = detect_desktop_environment()
         if de == "gnome":
-            tip_desc = "Right-click any operating system in the list to add to GNOME Dash/Search or create desktop shortcuts."
+            tip_desc = "Right-click any OS to hide unwanted entries, add to GNOME Dash/Search, or create desktop shortcuts."
         else:
-            tip_desc = "Right-click any operating system in the list to create Desktop & Application Menu shortcuts."
+            tip_desc = "Right-click any OS to hide unwanted entries, or create Desktop & Application Menu shortcuts."
 
         tip_box = QLabel(
             f"<span style='color: #fb923c; font-weight: 600;'>Tip:</span> "
@@ -463,7 +463,8 @@ class CliHelpDialog(QDialog):
             row += 1
         else:
             for entry in self.mgr.entries:
-                slug = entry.slugs[0] if entry.slugs else entry.entry_id.lower()
+                short_slugs = entry.get_short_slugs()
+                cmd_str = " | ".join(short_slugs)
                 is_def = (default_entry and entry.entry_id == default_entry.entry_id)
                 is_cur = (entry.entry_id == self.mgr.boot_current)
 
@@ -474,7 +475,7 @@ class CliHelpDialog(QDialog):
                     badges.append("<span style='color: #58a6ff; font-size: 10px; font-weight: 700;'>[CURRENT]</span>")
                 badge_html = (" " + " ".join(badges)) if badges else ""
 
-                cmd_lbl = QLabel(f"<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot {slug}</span>")
+                cmd_lbl = QLabel(f"<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot {cmd_str}</span>")
                 cmd_lbl.setTextFormat(Qt.TextFormat.RichText)
                 desc_lbl = QLabel(f"<span style='color: #8b949e; font-size: 11px;'>{entry.title} <span style='color: #6e7681;'>(Boot{entry.entry_id})</span>{badge_html}</span>")
                 desc_lbl.setTextFormat(Qt.TextFormat.RichText)
@@ -566,6 +567,72 @@ class CliHelpDialog(QDialog):
         close_btn.clicked.connect(self.accept)
         footer.addWidget(close_btn)
         main_layout.addLayout(footer)
+
+
+class OneClickHelpDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("One-Click Reboot")
+        self.resize(480, 240)
+        self.setMinimumSize(460, 220)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #161b22;
+                color: #f0f6fc;
+                border: 1px solid #30363d;
+                border-radius: 8px;
+            }
+            QLabel#dialogTitle {
+                font-size: 14px;
+                font-weight: 700;
+                color: #f0f6fc;
+            }
+            QLabel#dialogBody {
+                font-size: 12px;
+                color: #c9d1d9;
+                line-height: 1.4;
+            }
+            QPushButton#closeBtn {
+                background-color: #21262d;
+                color: #f0f6fc;
+                font-size: 12px;
+                font-weight: 600;
+                border-radius: 6px;
+                padding: 6px 18px;
+                border: 1px solid #30363d;
+            }
+            QPushButton#closeBtn:hover {
+                background-color: #30363d;
+                border: 1px solid #484f58;
+            }
+        """)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(22, 20, 22, 18)
+        layout.setSpacing(14)
+
+        title = QLabel("One-Click Reboot", self)
+        title.setObjectName("dialogTitle")
+        layout.addWidget(title)
+
+        body = QLabel(
+            "<p style='margin: 0 0 10px 0;'>When <b>One-click reboot</b> is enabled, clicking any operating system in the list immediately reboots to the selected boot target without needing to click the Reboot button.</p>"
+            "<p style='margin: 0; color: #8b949e;'>When disabled (default), clicking an entry selects it, and you must explicitly click <b>Reboot</b> to restart.</p>",
+            self,
+        )
+        body.setObjectName("dialogBody")
+        body.setWordWrap(True)
+        body.setTextFormat(Qt.TextFormat.RichText)
+        layout.addWidget(body)
+
+        footer = QHBoxLayout()
+        footer.addStretch()
+        close_btn = QPushButton("Got It", self)
+        close_btn.setObjectName("closeBtn")
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.clicked.connect(self.accept)
+        footer.addWidget(close_btn)
+        layout.addLayout(footer)
 
 
 class HiddenEntriesDialog(QDialog):
@@ -829,7 +896,7 @@ class NextBootWindow(QWidget):
         app_title.setObjectName("appTitle")
         title_vbox.addWidget(app_title)
 
-        app_desc = QLabel("One-Time OS Reboot Utility", self)
+        app_desc = QLabel("OS Reboot Utility", self)
         app_desc.setObjectName("appSubtitle")
         title_vbox.addWidget(app_desc)
         header.addLayout(title_vbox, stretch=1)
@@ -875,12 +942,25 @@ class NextBootWindow(QWidget):
         bottom_row.setSpacing(12)
         bottom_row.setAlignment(Qt.AlignmentFlag.AlignVCenter)
 
+        one_click_layout = QHBoxLayout()
+        one_click_layout.setSpacing(6)
+        one_click_layout.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+
         self.one_click_chk = QCheckBox("One-click reboot", self)
         self.one_click_chk.setObjectName("oneClickCheckbox")
         self.one_click_chk.setCursor(Qt.CursorShape.PointingHandCursor)
         self.one_click_chk.setChecked(bool(self.config.get("one_click_reboot", False)))
         self.one_click_chk.toggled.connect(self._on_one_click_toggled)
-        bottom_row.addWidget(self.one_click_chk)
+        one_click_layout.addWidget(self.one_click_chk)
+
+        self.one_click_help_btn = QPushButton("?", self)
+        self.one_click_help_btn.setObjectName("oneClickHelpBtn")
+        self.one_click_help_btn.setFixedSize(18, 18)
+        self.one_click_help_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.one_click_help_btn.clicked.connect(self._show_one_click_help)
+        one_click_layout.addWidget(self.one_click_help_btn)
+
+        bottom_row.addLayout(one_click_layout)
 
         bottom_row.addStretch()
 
@@ -1019,6 +1099,10 @@ class NextBootWindow(QWidget):
 
     def _show_cli_help(self):
         dlg = CliHelpDialog(self.mgr, self)
+        dlg.exec()
+
+    def _show_one_click_help(self):
+        dlg = OneClickHelpDialog(self)
         dlg.exec()
 
     def _execute_reboot_for_data(self, data: dict):
@@ -1249,6 +1333,22 @@ class NextBootWindow(QWidget):
                 border: 1px solid #484f58;
             }
             QPushButton#helpBtn:pressed {
+                background-color: #161b22;
+            }
+            QPushButton#oneClickHelpBtn {
+                background-color: #21262d;
+                color: #8b949e;
+                font-size: 11px;
+                font-weight: bold;
+                border-radius: 9px;
+                border: 1px solid #30363d;
+            }
+            QPushButton#oneClickHelpBtn:hover {
+                background-color: #30363d;
+                color: #f0f6fc;
+                border: 1px solid #484f58;
+            }
+            QPushButton#oneClickHelpBtn:pressed {
                 background-color: #161b22;
             }
             QPushButton#hiddenPillBtn {
