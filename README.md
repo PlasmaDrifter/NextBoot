@@ -98,6 +98,18 @@ The installer performs out-of-the-box setup:
 6. **Binaries & Desktop Launcher**: Registers `/usr/local/bin/nboot`, `/usr/local/bin/nextboot`, and `/usr/local/share/applications/nextboot.desktop`.
 7. **Bash Shell Autocompletions**: Installs completions to `/usr/share/bash-completion/completions/nboot`.
 
+## Updating
+
+To update an existing installation to the latest version:
+
+```bash
+cd NextBoot
+git pull
+sudo ./install.sh
+```
+
+Running `sudo ./install.sh` updates the application libraries, CLI binaries, distro logo assets, desktop entries, and shell completions. No service restart or system reboot is required.
+
 ## Uninstallation
 
 To completely remove NextBoot from your system:
