@@ -26,19 +26,28 @@ rm -f /usr/share/bash-completion/completions/nextboot
 if [ -n "$TARGET_HOME" ]; then
     rm -f "$TARGET_HOME/.local/share/applications/nextboot.desktop"
     rm -f "$TARGET_HOME/.local/share/icons/hicolor/scalable/apps/nextboot.svg"
+    rm -rf "$TARGET_HOME/.local/share/nextboot"
 fi
+
+run_as_target_user() {
+    if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ] && command -v runuser >/dev/null 2>&1; then
+        runuser -u "$TARGET_USER" -- "$@"
+    else
+        "$@"
+    fi
+}
 
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database /usr/local/share/applications 2>/dev/null || true
     if [ -n "$TARGET_HOME" ] && [ -d "$TARGET_HOME/.local/share/applications" ]; then
-        update-desktop-database "$TARGET_HOME/.local/share/applications" 2>/dev/null || true
+        run_as_target_user update-desktop-database "$TARGET_HOME/.local/share/applications" 2>/dev/null || true
     fi
 fi
 
 if command -v kbuildsycoca6 >/dev/null 2>&1; then
-    kbuildsycoca6 --noincremental 2>/dev/null || true
+    run_as_target_user kbuildsycoca6 --noincremental 2>/dev/null || true
 elif command -v kbuildsycoca5 >/dev/null 2>&1; then
-    kbuildsycoca5 --noincremental 2>/dev/null || true
+    run_as_target_user kbuildsycoca5 --noincremental 2>/dev/null || true
 fi
 
 echo "=== NextBoot uninstalled successfully! ==="

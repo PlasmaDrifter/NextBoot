@@ -17,11 +17,20 @@ echo "=== Installing NextBoot ==="
 # 0. System dependencies
 echo "0. Checking system dependencies..."
 if command -v pacman >/dev/null 2>&1; then
-    echo "Arch Linux detected. Ensuring efibootmgr, python-pyqt6, and qt6-wayland are installed..."
-    pacman -S --needed --noconfirm efibootmgr python-pyqt6 qt6-wayland 2>/dev/null || true
+    echo "Arch Linux detected. Ensuring efibootmgr, python-pyqt6, qt6-svg, and qt6-wayland are installed..."
+    pacman -S --needed --noconfirm efibootmgr python-pyqt6 qt6-svg qt6-wayland 2>/dev/null || true
 elif command -v apt-get >/dev/null 2>&1; then
     echo "Debian/Ubuntu detected. Ensuring efibootmgr, python3-pyqt6, python3-pyqt6.qtsvg, and qt6-wayland are installed..."
     apt-get update -y && apt-get install -y efibootmgr python3-pyqt6 python3-pyqt6.qtsvg qt6-wayland 2>/dev/null || true
+elif command -v dnf >/dev/null 2>&1; then
+    missing_pkgs=()
+    for pkg in efibootmgr python3-pyqt6 qt6-qtsvg; do
+        rpm -q "$pkg" >/dev/null 2>&1 || missing_pkgs+=("$pkg")
+    done
+    if [ "${#missing_pkgs[@]}" -gt 0 ]; then
+        echo "Fedora/Nobara/RHEL detected. Installing missing dependencies: ${missing_pkgs[*]}..."
+        dnf install -y "${missing_pkgs[@]}" 2>/dev/null || true
+    fi
 fi
 
 # 1. Privileged backend helper
@@ -47,13 +56,17 @@ install -m 644 "${SRC_DIR}/nextboot_core.py" /usr/local/share/nextboot/
 install -m 644 "${SRC_DIR}/nextboot_cli.py" /usr/local/share/nextboot/
 install -m 644 "${SRC_DIR}/nextboot_gui.py" /usr/local/share/nextboot/
 install -m 644 "${SRC_DIR}"/assets/*.svg /usr/local/share/nextboot/assets/ 2>/dev/null || true
-install -m 644 "${SRC_DIR}"/assets/*.png /usr/local/share/nextboot/assets/ 2>/dev/null || true
-cp -r "${SRC_DIR}/assets/distros/." /usr/local/share/nextboot/assets/distros/
-chmod 644 /usr/local/share/nextboot/assets/distros/*.svg
+install -m 644 "${SRC_DIR}"/assets/distros/*.svg /usr/local/share/nextboot/assets/distros/ 2>/dev/null || true
 
 if [ -n "$TARGET_HOME" ]; then
+    # Remove any stale user-local Python modules so /usr/local/share/nextboot stays authoritative
+    rm -f "$TARGET_HOME/.local/share/nextboot/nextboot_core.py" \
+          "$TARGET_HOME/.local/share/nextboot/nextboot_cli.py" \
+          "$TARGET_HOME/.local/share/nextboot/nextboot_gui.py"
+    rm -rf "$TARGET_HOME/.local/share/nextboot/__pycache__"
     mkdir -p "$TARGET_HOME/.local/share/nextboot/assets/distros"
-    cp -r "${SRC_DIR}/assets/distros/." "$TARGET_HOME/.local/share/nextboot/assets/distros/"
+    install -m 644 "${SRC_DIR}"/assets/*.svg "$TARGET_HOME/.local/share/nextboot/assets/" 2>/dev/null || true
+    install -m 644 "${SRC_DIR}"/assets/distros/*.svg "$TARGET_HOME/.local/share/nextboot/assets/distros/" 2>/dev/null || true
     chown -R "$TARGET_USER:$TARGET_USER" "$TARGET_HOME/.local/share/nextboot"
 fi
 
@@ -82,21 +95,32 @@ if [ -n "$TARGET_HOME" ]; then
     install -m 644 -o "$TARGET_USER" -g "$TARGET_USER" "${SRC_DIR}/nextboot.desktop" "$TARGET_HOME/.local/share/applications/nextboot.desktop"
 fi
 
+run_as_target_user() {
+    if [ -n "$TARGET_USER" ] && [ "$TARGET_USER" != "root" ] && command -v runuser >/dev/null 2>&1; then
+        runuser -u "$TARGET_USER" -- "$@"
+    else
+        "$@"
+    fi
+}
+
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database /usr/local/share/applications 2>/dev/null || true
     if [ -n "$TARGET_HOME" ] && [ -d "$TARGET_HOME/.local/share/applications" ]; then
-        update-desktop-database "$TARGET_HOME/.local/share/applications" 2>/dev/null || true
+        run_as_target_user update-desktop-database "$TARGET_HOME/.local/share/applications" 2>/dev/null || true
     fi
 fi
 
 if command -v kbuildsycoca6 >/dev/null 2>&1; then
-    kbuildsycoca6 --noincremental 2>/dev/null || true
+    run_as_target_user kbuildsycoca6 --noincremental 2>/dev/null || true
 elif command -v kbuildsycoca5 >/dev/null 2>&1; then
-    kbuildsycoca5 --noincremental 2>/dev/null || true
+    run_as_target_user kbuildsycoca5 --noincremental 2>/dev/null || true
 fi
 
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     gtk-update-icon-cache -f -t /usr/local/share/icons/hicolor 2>/dev/null || true
+    if [ -n "$TARGET_HOME" ] && [ -d "$TARGET_HOME/.local/share/icons/hicolor" ]; then
+        run_as_target_user gtk-update-icon-cache -f -t "$TARGET_HOME/.local/share/icons/hicolor" 2>/dev/null || true
+    fi
 fi
 
 # 7. Bash completion

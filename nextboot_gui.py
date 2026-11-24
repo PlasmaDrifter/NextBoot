@@ -4,13 +4,15 @@ nextboot_gui.py - Clean, muted list interface for NextBoot with distro logos
 and automatic sub-distro recognition (Nobara, CachyOS, etc.).
 """
 
+from __future__ import annotations
+
+import html
 import os
 import re
 import sys
 from pathlib import Path
-from typing import List, Optional
 
-from PyQt6.QtCore import Qt, QPoint, QSize, QTimer, pyqtSignal
+from PyQt6.QtCore import QPoint, Qt, QTimer
 from PyQt6.QtGui import QFont, QIcon, QKeyEvent
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtWidgets import (
@@ -34,18 +36,19 @@ from PyQt6.QtWidgets import (
 from nextboot_core import (
     BootEntry,
     UEFIManager,
+    __version__,
+    clear_bootnext,
     create_os_shortcut,
     detect_desktop_environment,
     execute_reboot,
     hide_entry,
     is_entry_hidden,
     load_config,
-    save_config,
     set_bootnext,
     simplify_os_name,
     unhide_all_entries,
     unhide_entry,
-    __version__,
+    update_config,
 )
 
 SCRIPT_DIR = Path(__file__).parent.resolve()
@@ -55,20 +58,44 @@ possible_assets = [
     Path("/usr/local/share/nextboot/assets"),
     Path("/usr/share/nextboot/assets"),
 ]
-ASSETS_DIR = SCRIPT_DIR / "assets"
-for p in possible_assets:
-    distros_folder = p / "distros"
-    try:
-        if distros_folder.is_dir() and any(distros_folder.iterdir()):
-            ASSETS_DIR = p
-            break
-    except Exception:
-        pass
-
-DISTROS_DIR = ASSETS_DIR / "distros"
 
 
-def resolve_distro_icon_path(entry: Optional[BootEntry], is_firmware: bool = False) -> Path:
+def _resolve_asset_dirs() -> tuple[Path, Path]:
+    fallback = SCRIPT_DIR / "assets"
+    assets_dir: Path | None = None
+    distros_dir: Path | None = None
+    for p in possible_assets:
+        distros_folder = p / "distros"
+        try:
+            has_distros = distros_folder.is_dir() and any(distros_folder.iterdir())
+            has_ui_assets = (p / "app_icon.svg").is_file() and (p / "checkmark.svg").is_file()
+            if distros_dir is None and has_distros:
+                distros_dir = distros_folder
+            if assets_dir is None and has_distros and has_ui_assets:
+                assets_dir = p
+                distros_dir = distros_folder
+                break
+        except OSError:
+            pass
+
+    if assets_dir is None:
+        for p in possible_assets:
+            try:
+                if (p / "app_icon.svg").is_file() and (p / "checkmark.svg").is_file():
+                    assets_dir = p
+                    break
+            except OSError:
+                pass
+
+    resolved_assets = assets_dir or fallback
+    resolved_distros = distros_dir or (resolved_assets / "distros")
+    return resolved_assets, resolved_distros
+
+
+ASSETS_DIR, DISTROS_DIR = _resolve_asset_dirs()
+
+
+def resolve_distro_icon_path(entry: BootEntry | None, is_firmware: bool = False) -> Path:
     if is_firmware:
         return DISTROS_DIR / "uefi.svg"
     if not entry:
@@ -77,9 +104,9 @@ def resolve_distro_icon_path(entry: Optional[BootEntry], is_firmware: bool = Fal
     text = f"{entry.title} {entry.raw_title} {' '.join(entry.slugs)}".lower()
 
     mapping = [
-        # 1. Non-Linux / Hardware / Firmware
+        # 1. Non-Linux / Multiboot USB
         (["windows", "bootmgfw", "microsoft"], "windows.svg"),
-        (["usb", "flash drive", "samsung", "ventoy"], "usb.svg"),
+        (["ventoy"], "usb.svg"),
 
         # 2. Specific Fedora derivatives
         (["nobara"], "nobara.svg"),
@@ -199,6 +226,9 @@ def resolve_distro_icon_path(entry: Optional[BootEntry], is_firmware: bool = Fal
         (["rhel", "redhat", "red hat"], "rhel.svg"),
         (["opensuse", "suse"], "opensuse.svg"),
         (["bsd"], "freebsd.svg"),
+
+        # 10. Generic Removable / USB Devices (after OS/distro detection)
+        (["usb", "flash drive", "removable"], "usb.svg"),
     ]
 
     words = set(re.findall(r"[a-z0-9]+", text))
@@ -219,13 +249,18 @@ def resolve_distro_icon_path(entry: Optional[BootEntry], is_firmware: bool = Fal
             if p.exists():
                 return p
 
+    if entry.os_type == "usb":
+        usb_icon = DISTROS_DIR / "usb.svg"
+        if usb_icon.exists():
+            return usb_icon
+
     return DISTROS_DIR / "linux.svg"
 
 
 class OSListRowWidget(QWidget):
     def __init__(
         self,
-        entry: Optional[BootEntry] = None,
+        entry: BootEntry | None = None,
         is_current: bool = False,
         is_default: bool = False,
         is_firmware_setup: bool = False,
@@ -324,7 +359,8 @@ class CliHelpDialog(QDialog):
         super().__init__(parent)
         self.mgr = mgr
         self.setWindowTitle("CLI Commands Reference - NextBoot")
-        self.setFixedSize(580, 640)
+        self.resize(580, 640)
+        self.setMinimumSize(500, 480)
         self.setStyleSheet("""
             QDialog {
                 background-color: #161b22;
@@ -443,14 +479,22 @@ class CliHelpDialog(QDialog):
         grid1.setHorizontalSpacing(16)
         grid1.setVerticalSpacing(7)
 
-        default_entry = self.mgr.get_default_entry()
+        default_entry, is_fw_default, _ = self.mgr.get_configured_default()
         row = 0
 
         # Default reboot command
-        if default_entry:
+        if is_fw_default:
             cmd_def = QLabel("<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot</span>")
             cmd_def.setTextFormat(Qt.TextFormat.RichText)
-            desc_def = QLabel(f"<span style='color: #c9d1d9; font-size: 11px;'>Reboot to default target ({default_entry.title})</span>")
+            desc_def = QLabel("<span style='color: #c9d1d9; font-size: 11px;'>Reboot to default target (UEFI Firmware / BIOS Setup)</span>")
+            desc_def.setTextFormat(Qt.TextFormat.RichText)
+            grid1.addWidget(cmd_def, row, 0, Qt.AlignmentFlag.AlignLeft)
+            grid1.addWidget(desc_def, row, 1, Qt.AlignmentFlag.AlignLeft)
+            row += 1
+        elif default_entry:
+            cmd_def = QLabel("<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot</span>")
+            cmd_def.setTextFormat(Qt.TextFormat.RichText)
+            desc_def = QLabel(f"<span style='color: #c9d1d9; font-size: 11px;'>Reboot to default target ({html.escape(default_entry.title)})</span>")
             desc_def.setTextFormat(Qt.TextFormat.RichText)
             grid1.addWidget(cmd_def, row, 0, Qt.AlignmentFlag.AlignLeft)
             grid1.addWidget(desc_def, row, 1, Qt.AlignmentFlag.AlignLeft)
@@ -464,8 +508,8 @@ class CliHelpDialog(QDialog):
         else:
             for entry in self.mgr.entries:
                 short_slugs = entry.get_short_slugs()
-                cmd_str = " | ".join(short_slugs)
-                is_def = (default_entry and entry.entry_id == default_entry.entry_id)
+                cmd_str = " | ".join(html.escape(s) for s in short_slugs)
+                is_def = (not is_fw_default and default_entry is not None and entry.entry_id == default_entry.entry_id)
                 is_cur = (entry.entry_id == self.mgr.boot_current)
 
                 badges = []
@@ -477,7 +521,7 @@ class CliHelpDialog(QDialog):
 
                 cmd_lbl = QLabel(f"<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot {cmd_str}</span>")
                 cmd_lbl.setTextFormat(Qt.TextFormat.RichText)
-                desc_lbl = QLabel(f"<span style='color: #8b949e; font-size: 11px;'>{entry.title} <span style='color: #6e7681;'>(Boot{entry.entry_id})</span>{badge_html}</span>")
+                desc_lbl = QLabel(f"<span style='color: #8b949e; font-size: 11px;'>{html.escape(entry.title)} <span style='color: #6e7681;'>(Boot{entry.entry_id})</span>{badge_html}</span>")
                 desc_lbl.setTextFormat(Qt.TextFormat.RichText)
 
                 grid1.addWidget(cmd_lbl, row, 0, Qt.AlignmentFlag.AlignLeft)
@@ -485,9 +529,10 @@ class CliHelpDialog(QDialog):
                 row += 1
 
         # BIOS / UEFI command
+        fw_badge = " <span style='color: #ea580c; font-size: 10px; font-weight: 700;'>[DEFAULT]</span>" if is_fw_default else ""
         cmd_fw = QLabel("<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot bios | uefi</span>")
         cmd_fw.setTextFormat(Qt.TextFormat.RichText)
-        desc_fw = QLabel("<span style='color: #8b949e; font-size: 11px;'>Reboot into UEFI Firmware / BIOS Setup</span>")
+        desc_fw = QLabel(f"<span style='color: #8b949e; font-size: 11px;'>Reboot into UEFI Firmware / BIOS Setup{fw_badge}</span>")
         desc_fw.setTextFormat(Qt.TextFormat.RichText)
         grid1.addWidget(cmd_fw, row, 0, Qt.AlignmentFlag.AlignLeft)
         grid1.addWidget(desc_fw, row, 1, Qt.AlignmentFlag.AlignLeft)
@@ -511,6 +556,10 @@ class CliHelpDialog(QDialog):
             ("nboot list | ls", "List all bootable entries with IDs and aliases"),
             ("nboot status", "Display current BootNext NVRAM status and boot order"),
             ("nboot set-default &lt;target&gt;", "Set persistent default OS (e.g. nboot set-default windows)"),
+            ("nboot clear", "Clear any pending UEFI BootNext override"),
+            ("nboot hide &lt;target&gt;", "Hide an unwanted boot entry from the main list"),
+            ("nboot unhide &lt;target&gt;", "Restore a hidden entry (or 'all' to restore everything)"),
+            ("nboot hidden", "List all currently hidden boot entries"),
             ("nboot gui", "Launch NextBoot graphical interface"),
         ]
         for r, (c, d) in enumerate(cmds):
@@ -536,6 +585,7 @@ class CliHelpDialog(QDialog):
         grid3.setVerticalSpacing(7)
 
         flags = [
+            ("-a, --all", "Include hidden and non-OS entries in 'nboot list'"),
             ("-y, --now", "Reboot immediately without confirmation prompt"),
             ("-d, --dry-run", "Simulate command without modifying NVRAM or rebooting"),
             ("-h, --help", "Display CLI help output"),
@@ -642,6 +692,74 @@ class HiddenEntriesDialog(QDialog):
         self.setWindowTitle("Hidden Boot Entries")
         self.resize(520, 420)
         self.setMinimumSize(420, 300)
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #161b22;
+                color: #c9d1d9;
+                font-family: system-ui, -apple-system, sans-serif;
+            }
+            QLabel#dialogTitle {
+                color: #f0f6fc;
+                font-size: 15px;
+                font-weight: bold;
+            }
+            QLabel#dialogSubtitle {
+                color: #7d8590;
+                font-size: 11px;
+            }
+            QPushButton#subtleBtn {
+                background-color: #21262d;
+                color: #c9d1d9;
+                font-size: 11px;
+                border-radius: 6px;
+                padding: 6px 12px;
+                border: 1px solid #30363d;
+            }
+            QPushButton#subtleBtn:hover {
+                background-color: #30363d;
+                color: #f0f6fc;
+                border: 1px solid #484f58;
+            }
+            QPushButton#subtleBtn:disabled {
+                color: #484f58;
+                background-color: #161b22;
+                border: 1px solid #21262d;
+            }
+            QPushButton#closeBtn {
+                background-color: #21262d;
+                color: #f0f6fc;
+                font-size: 12px;
+                font-weight: 600;
+                border-radius: 6px;
+                padding: 6px 18px;
+                border: 1px solid #30363d;
+            }
+            QPushButton#closeBtn:hover {
+                background-color: #30363d;
+                border: 1px solid #484f58;
+            }
+            QScrollArea {
+                background: transparent;
+                border: none;
+            }
+            QScrollBar:vertical {
+                background: #0d1117;
+                width: 6px;
+                margin: 0;
+                border-radius: 3px;
+            }
+            QScrollBar::handle:vertical {
+                background: #30363d;
+                min-height: 24px;
+                border-radius: 3px;
+            }
+            QScrollBar::handle:vertical:hover {
+                background: #484f58;
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+                height: 0px;
+            }
+        """)
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(22, 20, 22, 18)
@@ -659,17 +777,17 @@ class HiddenEntriesDialog(QDialog):
         main_layout.addLayout(header_layout)
 
         # Scroll Area
-        self.scroll = QScrollArea(self)
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area = QScrollArea(self)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.content = QWidget()
         self.content.setStyleSheet("background: transparent;")
         self.content_layout = QVBoxLayout(self.content)
         self.content_layout.setContentsMargins(0, 2, 6, 2)
         self.content_layout.setSpacing(8)
-        self.scroll.setWidget(self.content)
-        main_layout.addWidget(self.scroll, stretch=1)
+        self.scroll_area.setWidget(self.content)
+        main_layout.addWidget(self.scroll_area, stretch=1)
 
         # Footer
         footer = QHBoxLayout()
@@ -695,8 +813,10 @@ class HiddenEntriesDialog(QDialog):
     def _load_items(self):
         while self.content_layout.count():
             child = self.content_layout.takeAt(0)
-            if child.widget():
-                child.widget().deleteLater()
+            if child is not None:
+                widget = child.widget()
+                if widget is not None:
+                    widget.deleteLater()
 
         hidden_items = self.mgr.get_hidden_entries()
         if not hidden_items:
@@ -718,7 +838,7 @@ class HiddenEntriesDialog(QDialog):
             row_card.setObjectName("hiddenRowCard")
             row_card.setStyleSheet("""
                 QFrame#hiddenRowCard {
-                    background-color: #161b22;
+                    background-color: #0d1117;
                     border: 1px solid #30363d;
                     border-radius: 6px;
                     padding: 8px 12px;
@@ -750,18 +870,18 @@ class HiddenEntriesDialog(QDialog):
             info_layout = QVBoxLayout()
             info_layout.setSpacing(2)
 
-            if is_fw:
+            if is_fw or entry is None:
                 title_text = "UEFI Firmware Setup"
                 sub_text = "Firmware settings utility"
                 unhide_target = "uefi_setup"
             else:
                 title_text = entry.title
-                sub_text = f"Boot{entry.entry_id}"
-                unhide_target = entry.entry_id
+                unhide_target = getattr(entry, "hidden_identifier", entry.entry_id)
+                sub_text = "Configured hidden entry" if entry.entry_id == "----" else f"Boot{entry.entry_id}"
 
-            lbl_title = QLabel(f"<span style='color: #f0f6fc; font-size: 12px; font-weight: 600;'>{title_text}</span>", row_card)
+            lbl_title = QLabel(f"<span style='color: #f0f6fc; font-size: 12px; font-weight: 600;'>{html.escape(title_text)}</span>", row_card)
             lbl_title.setTextFormat(Qt.TextFormat.RichText)
-            lbl_sub = QLabel(f"<span style='color: #7d8590; font-size: 11px;'>{sub_text}</span>", row_card)
+            lbl_sub = QLabel(f"<span style='color: #7d8590; font-size: 11px;'>{html.escape(sub_text)}</span>", row_card)
             lbl_sub.setTextFormat(Qt.TextFormat.RichText)
             info_layout.addWidget(lbl_title)
             info_layout.addWidget(lbl_sub)
@@ -779,17 +899,22 @@ class HiddenEntriesDialog(QDialog):
 
         self.content_layout.addStretch()
 
+    def _refresh_parent(self):
+        parent = self.parent()
+        if parent is not None:
+            load_list_fn = getattr(parent, "_load_list", None)
+            if callable(load_list_fn):
+                load_list_fn()
+
     def _restore_single(self, target: str):
         unhide_entry(target, self.mgr)
         self._load_items()
-        if self.parent() and hasattr(self.parent(), "_load_list"):
-            self.parent()._load_list()
+        self._refresh_parent()
 
     def _restore_all(self):
         unhide_all_entries()
         self._load_items()
-        if self.parent() and hasattr(self.parent(), "_load_list"):
-            self.parent()._load_list()
+        self._refresh_parent()
 
 
 class NextBootWindow(QWidget):
@@ -798,8 +923,17 @@ class NextBootWindow(QWidget):
         self.mgr = UEFIManager()
         self.config = load_config()
         self.de = detect_desktop_environment()
-        self.items_data: List[dict] = []
-        self.current_undo_target: Optional[str] = None
+        self.items_data: list[dict] = []
+        self.current_undo_target: str | None = None
+        self._reboot_in_progress = False
+
+        self._banner_timer = QTimer(self)
+        self._banner_timer.setSingleShot(True)
+        self._banner_timer.timeout.connect(self._hide_status_banner)
+
+        self._resize_save_timer = QTimer(self)
+        self._resize_save_timer.setSingleShot(True)
+        self._resize_save_timer.timeout.connect(self._save_window_geometry)
 
         self.setWindowTitle("NextBoot")
 
@@ -818,22 +952,26 @@ class NextBootWindow(QWidget):
         self._load_list()
         self._apply_global_theme()
 
+    def _save_window_geometry(self):
+        if not self.isMaximized() and not self.isMinimized():
+            self.config = update_config({
+                "window_width": self.width(),
+                "window_height": self.height(),
+            })
+
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        # Update config with current window dimensions
-        if not self.isMaximized() and not self.isMinimized():
-            self.config["window_width"] = self.width()
-            self.config["window_height"] = self.height()
-            save_config(self.config)
+        if self.isVisible() and not self.isMaximized() and not self.isMinimized():
+            self._resize_save_timer.start(400)
 
     def closeEvent(self, event):
-        if not self.isMaximized() and not self.isMinimized():
-            self.config["window_width"] = self.width()
-            self.config["window_height"] = self.height()
-            save_config(self.config)
+        self._resize_save_timer.stop()
+        self._save_window_geometry()
         super().closeEvent(event)
 
-    def keyPressEvent(self, event: QKeyEvent):
+    def keyPressEvent(self, event: QKeyEvent | None):
+        if event is None:
+            return
         key = event.key()
         count = self.list_widget.count()
 
@@ -986,13 +1124,13 @@ class NextBootWindow(QWidget):
         main_layout.addLayout(bottom_row)
 
     def _on_one_click_toggled(self, checked: bool):
-        self.config["one_click_reboot"] = checked
-        save_config(self.config)
+        self.config = update_config({"one_click_reboot": checked})
 
     def _load_list(self):
         self.mgr.refresh()
         self.config = load_config()
-        hidden_list = self.config.get("hidden_entries", [])
+        hidden_raw = self.config.get("hidden_entries", [])
+        hidden_list = [str(x) for x in hidden_raw] if isinstance(hidden_raw, list) else []
 
         self.one_click_chk.blockSignals(True)
         self.one_click_chk.setChecked(bool(self.config.get("one_click_reboot", False)))
@@ -1008,8 +1146,12 @@ class NextBootWindow(QWidget):
         else:
             self.hidden_btn.setVisible(False)
 
-        default_entry = self.mgr.get_default_entry()
+        default_entry, is_fw_default, _ = self.mgr.get_configured_default()
+        fallback_entry = None if (is_fw_default or default_entry) else self.mgr.get_firmware_default_entry()
+
+        self._banner_timer.stop()
         self.banner.setVisible(False)
+        self.current_undo_target = None
 
         default_row = 0
         visible_idx = 0
@@ -1020,7 +1162,7 @@ class NextBootWindow(QWidget):
                 continue
 
             is_current = (entry.entry_id == self.mgr.boot_current)
-            is_default = (default_entry and entry.entry_id == default_entry.entry_id)
+            is_default = (not is_fw_default and default_entry is not None and entry.entry_id == default_entry.entry_id)
 
             item = QListWidgetItem(self.list_widget)
             widget = OSListRowWidget(
@@ -1039,7 +1181,7 @@ class NextBootWindow(QWidget):
                 "is_firmware": False,
             })
 
-            if is_default:
+            if is_default or (fallback_entry is not None and entry.entry_id == fallback_entry.entry_id):
                 default_row = visible_idx
             visible_idx += 1
 
@@ -1049,7 +1191,7 @@ class NextBootWindow(QWidget):
             fw_widget = OSListRowWidget(
                 entry=None,
                 is_current=False,
-                is_default=False,
+                is_default=is_fw_default,
                 is_firmware_setup=True,
                 parent=self.list_widget,
             )
@@ -1060,6 +1202,8 @@ class NextBootWindow(QWidget):
                 "entry": None,
                 "is_firmware": True,
             })
+            if is_fw_default:
+                default_row = visible_idx
 
         if self.items_data:
             if default_row >= len(self.items_data):
@@ -1067,13 +1211,13 @@ class NextBootWindow(QWidget):
             self.list_widget.setCurrentRow(default_row)
             self.list_widget.setFocus()
 
-    def _get_selected_data(self) -> Optional[dict]:
+    def _get_selected_data(self) -> dict | None:
         row = self.list_widget.currentRow()
         if 0 <= row < len(self.items_data):
             return self.items_data[row]
         return None
 
-    def _on_selection_changed(self, current: QListWidgetItem, previous: Optional[QListWidgetItem]):
+    def _on_selection_changed(self, current: QListWidgetItem | None, previous: QListWidgetItem | None):
         data = self._get_selected_data()
         if not data:
             self.reboot_btn.setEnabled(False)
@@ -1084,15 +1228,17 @@ class NextBootWindow(QWidget):
         if data["is_firmware"]:
             self.reboot_btn.setText("Reboot to BIOS Setup")
         else:
-            entry: BootEntry = data["entry"]
-            self.reboot_btn.setText(f"Reboot into {entry.title}")
+            entry: BootEntry | None = data["entry"]
+            if entry is not None:
+                self.reboot_btn.setText(f"Reboot into {entry.title}")
 
     def _on_item_clicked(self, item: QListWidgetItem):
         if self.one_click_chk.isChecked():
             self._on_reboot_clicked()
 
     def _on_item_double_clicked(self, item: QListWidgetItem):
-        self._on_reboot_clicked()
+        if not self.one_click_chk.isChecked():
+            self._on_reboot_clicked()
 
     def _refresh(self):
         self._load_list()
@@ -1106,20 +1252,31 @@ class NextBootWindow(QWidget):
         dlg.exec()
 
     def _execute_reboot_for_data(self, data: dict):
-        is_firmware = data["is_firmware"]
-        entry: Optional[BootEntry] = data["entry"]
+        if self._reboot_in_progress:
+            return
+        is_firmware = bool(data.get("is_firmware"))
+        entry: BootEntry | None = data.get("entry")
+        if not is_firmware and entry is None:
+            return
 
-        if is_firmware:
-            success, msg = execute_reboot(firmware_setup=True, dry_run=False)
-        else:
-            success, msg = set_bootnext(entry.entry_id, dry_run=False)
-            if not success:
-                QMessageBox.critical(self, "BootNext Error", msg)
-                return
-            success, msg = execute_reboot(firmware_setup=False, dry_run=False)
-
-        if not success:
-            QMessageBox.critical(self, "Reboot Error", msg)
+        self._reboot_in_progress = True
+        try:
+            if is_firmware:
+                success, msg = execute_reboot(firmware_setup=True, dry_run=False)
+                if not success:
+                    QMessageBox.critical(self, "Reboot Error", msg)
+            elif entry is not None:
+                success, msg = set_bootnext(entry.entry_id, dry_run=False)
+                if not success:
+                    QMessageBox.critical(self, "BootNext Error", msg)
+                    return
+                success, msg = execute_reboot(firmware_setup=False, dry_run=False)
+                if not success:
+                    cleared, clear_msg = clear_bootnext(dry_run=False)
+                    rollback_note = f"\n\n{clear_msg}" if cleared else f"\n\nWarning: BootNext may remain set ({clear_msg})."
+                    QMessageBox.critical(self, "Reboot Error", f"{msg}{rollback_note}")
+        finally:
+            self._reboot_in_progress = False
 
     def _on_reboot_clicked(self):
         data = self._get_selected_data()
@@ -1127,30 +1284,36 @@ class NextBootWindow(QWidget):
             return
         self._execute_reboot_for_data(data)
 
-    def _show_status_message(self, text: str, is_error: bool = False, undo_target: Optional[str] = None):
+    def _hide_status_banner(self):
+        self.banner.setVisible(False)
+        self.current_undo_target = None
+
+    def _show_status_message(self, text: str, is_error: bool = False, undo_target: str | None = None):
         color = "#f85149" if is_error else "#58a6ff"
         border = "#da3633" if is_error else "#1f6feb"
         bg = "#161b22"
         self.banner.setStyleSheet(
             f"background-color: {bg}; color: {color}; border: 1px solid {border}; border-radius: 6px; padding: 6px 12px; font-size: 11px;"
         )
+        safe_text = html.escape(text)
         if undo_target:
             self.current_undo_target = undo_target
             full_html = (
-                f"{text} "
+                f"{safe_text} "
                 f"<a href='#undo' style='color: #ea580c; font-weight: bold; text-decoration: underline; margin-left: 8px;'>Undo</a>"
             )
             self.banner.setText(full_html)
         else:
             self.current_undo_target = None
-            self.banner.setText(text)
+            self.banner.setText(safe_text)
         self.banner.setVisible(True)
-        QTimer.singleShot(5000, lambda: self.banner.setVisible(False))
+        self._banner_timer.start(5000)
 
     def _on_banner_link(self, link: str):
-        if link == "#undo" and getattr(self, "current_undo_target", None):
+        if link == "#undo" and self.current_undo_target:
             target = self.current_undo_target
             self.current_undo_target = None
+            self._banner_timer.stop()
             unhide_entry(target, self.mgr)
             self._load_list()
             self._show_status_message("Restored entry to list.")
@@ -1208,31 +1371,36 @@ class NextBootWindow(QWidget):
         self.list_widget.setCurrentRow(row)
 
         data = self.items_data[row]
-        is_firmware = data["is_firmware"]
-        entry: Optional[BootEntry] = data["entry"]
+        is_firmware = bool(data.get("is_firmware"))
+        entry: BootEntry | None = data.get("entry")
 
         if is_firmware:
             target_title = "UEFI Firmware Setup"
             slug = "uefi"
-        else:
+        elif entry is not None:
             target_title = entry.title
             slug = entry.slugs[0] if entry.slugs else entry.entry_id.lower()
+        else:
+            return
 
         icon_path = resolve_distro_icon_path(entry, is_firmware=is_firmware)
 
         menu = QMenu(self)
 
         desktop_act = menu.addAction("Create Desktop Shortcut")
-        desktop_act.triggered.connect(lambda: self._create_shortcut(target_title, slug, icon_path, "desktop"))
+        if desktop_act is not None:
+            desktop_act.triggered.connect(lambda: self._create_shortcut(target_title, slug, icon_path, "desktop"))
 
         app_menu_label = "Add to Application Menu (Pin to Dash)" if self.de == "gnome" else "Add to Application Menu"
         app_menu_act = menu.addAction(app_menu_label)
-        app_menu_act.triggered.connect(lambda: self._create_shortcut(target_title, slug, icon_path, "applications"))
+        if app_menu_act is not None:
+            app_menu_act.triggered.connect(lambda: self._create_shortcut(target_title, slug, icon_path, "applications"))
 
         menu.addSeparator()
 
         copy_act = menu.addAction("Copy CLI Command")
-        copy_act.triggered.connect(lambda: self._copy_hotkey_command(slug))
+        if copy_act is not None:
+            copy_act.triggered.connect(lambda: self._copy_hotkey_command(slug))
 
         menu.addSeparator()
 
@@ -1240,23 +1408,28 @@ class NextBootWindow(QWidget):
             hide_target = "uefi_setup"
             can_hide = True
             hide_label = "Hide UEFI Setup"
-        else:
+        elif entry is not None:
             hide_target = entry.entry_id
             can_hide = (entry.entry_id != self.mgr.boot_current)
             hide_label = f"Hide '{simplify_os_name(entry.title)}'"
+        else:
+            return
 
         if can_hide:
             hide_act = menu.addAction(hide_label)
-            hide_act.triggered.connect(lambda: self._hide_entry_action(hide_target, target_title))
+            if hide_act is not None:
+                hide_act.triggered.connect(lambda: self._hide_entry_action(hide_target, target_title))
         else:
             cant_hide_act = menu.addAction("Cannot Hide Active Booted OS")
-            cant_hide_act.setEnabled(False)
+            if cant_hide_act is not None:
+                cant_hide_act.setEnabled(False)
 
         hidden_items = self.mgr.get_hidden_entries()
         if hidden_items:
             menu.addSeparator()
             manage_act = menu.addAction(f"Manage Hidden Entries ({len(hidden_items)})...")
-            manage_act.triggered.connect(self._show_hidden_dialog)
+            if manage_act is not None:
+                manage_act.triggered.connect(self._show_hidden_dialog)
 
         menu.exec(self.list_widget.mapToGlobal(pos))
 
@@ -1488,11 +1661,10 @@ def launch_gui():
     if os.environ.get("WAYLAND_DISPLAY") and "QT_QPA_PLATFORM" not in os.environ:
         os.environ["QT_QPA_PLATFORM"] = "wayland;xcb"
 
-    app = QApplication.instance()
-    if not app:
-        app = QApplication(sys.argv)
+    inst = QApplication.instance()
+    app = inst if isinstance(inst, QApplication) else QApplication(sys.argv)
     app.setApplicationName("NextBoot")
-    app.setDesktopFileName("nextboot.desktop")
+    app.setDesktopFileName("nextboot")
     icon_path = ASSETS_DIR / "app_icon.svg"
     if icon_path.exists():
         app.setWindowIcon(QIcon(str(icon_path)))

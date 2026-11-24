@@ -1,27 +1,36 @@
 # Bash completion for nboot
 _nboot_completions() {
-    local cur prev opts
+    local cur prev opts flags
     COMPREPLY=()
     cur="${COMP_WORDS[COMP_CWORD]}"
     prev="${COMP_WORDS[COMP_CWORD-1]}"
 
-    opts="windows win fedora nobara bios uefi list ls status set-default gui --dry-run --now --help -d -y -h -g"
+    flags="--dry-run --now --yes --all --gui --version --help -d -y -a -g -V -h"
+    opts="windows win fedora nobara cachy arch ubuntu debian mint bios uefi clear list ls hide unhide restore hidden status set-default default gui ${flags}"
 
     if [[ ${cur} == -* ]] ; then
-        COMPREPLY=( $(compgen -W "--dry-run --now --help --gui -d -y -h -g" -- ${cur}) )
+        COMPREPLY=( $(compgen -W "${flags}" -- "${cur}") )
         return 0
     fi
 
     case "${prev}" in
-        set-default|set)
-            COMPREPLY=( $(compgen -W "windows win fedora nobara" -- ${cur}) )
+        set-default|set|setdefault)
+            COMPREPLY=( $(compgen -W "windows win fedora nobara cachy arch ubuntu debian mint uefi bios" -- "${cur}") )
+            return 0
+            ;;
+        hide)
+            COMPREPLY=( $(compgen -W "windows win fedora nobara uefi bios" -- "${cur}") )
+            return 0
+            ;;
+        unhide|restore)
+            COMPREPLY=( $(compgen -W "all uefi bios" -- "${cur}") )
             return 0
             ;;
         *)
             ;;
     esac
 
-    COMPREPLY=( $(compgen -W "${opts}" -- ${cur}) )
+    COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
     return 0
 }
 

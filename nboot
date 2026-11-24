@@ -51,7 +51,7 @@ if __name__ == "__main__":
     args = sys.argv[1:]
 
     # Explicit GUI request
-    if args and args[0] in ["gui", "-g", "--gui"]:
+    if args and args[0] in ["g", "gui", "-g", "--gui"]:
         _safe_launch_gui()
         sys.exit(0)
 

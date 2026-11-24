@@ -43,14 +43,17 @@ The primary command is `nboot` (with `nextboot` available as an alias).
 | `nboot unhide <target>` | Restore a hidden entry (use `nboot unhide all` to restore all) |
 | `nboot hidden` | List all currently hidden boot entries |
 | `nboot status` | Display current UEFI BootNext status and default target |
-| `nboot set-default <target>` | Set persistent default OS (e.g., `nboot set-default win`) |
+| `nboot set-default <target>` | Set persistent default OS or `uefi` (e.g., `nboot set-default win`) |
+| `nboot clear` | Clear any pending UEFI BootNext override |
 | `nboot gui` | Open the graphical interface |
 
 ### Command Flags
 
 - `-a`, `--all`: Show all entries including hidden ones in `nboot list`.
-- `-y`, `--now`: Skip confirmation prompt and reboot immediately (e.g. `nboot win -y`).
+- `-y`, `--yes`, `--now`: Skip confirmation prompt and reboot immediately (e.g. `nboot win -y`).
 - `-d`, `--dry-run`: Test target resolution and simulate action without modifying NVRAM or rebooting.
+- `-g`, `--gui`: Launch the graphical interface.
+- `-V`, `--version`: Display version information.
 - `-h`, `--help`: Display CLI help and options.
 
 ## GUI Usage

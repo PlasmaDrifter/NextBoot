@@ -4,22 +4,33 @@
 set -euo pipefail
 
 if [ "$#" -lt 1 ]; then
-    echo "Usage: $(basename "$0") <BOOT_ENTRY_HEX>" >&2
+    echo "Usage: $(basename "$0") <BOOT_ENTRY_HEX|--clear>" >&2
     echo "Example: $(basename "$0") 0000" >&2
     exit 1
 fi
 
 ENTRY="$1"
 
-# Validate 4-digit hexadecimal format strictly
-if [[ ! "$ENTRY" =~ ^[0-9A-Fa-f]{4}$ ]]; then
-    echo "Error: Invalid boot entry format '$ENTRY'. Must be 4 hex digits (e.g. 0000)." >&2
-    exit 1
-fi
-
 # Ensure efibootmgr is available
 if ! command -v efibootmgr >/dev/null 2>&1; then
     echo "Error: efibootmgr command not found." >&2
+    exit 1
+fi
+
+if [ "$ENTRY" = "--clear" ] || [ "$ENTRY" = "-N" ]; then
+    if efibootmgr | grep -q "^BootNext:"; then
+        echo "Clearing UEFI BootNext..."
+        efibootmgr --delete-bootnext >/dev/null
+        echo "UEFI BootNext cleared."
+    else
+        echo "No pending UEFI BootNext to clear."
+    fi
+    exit 0
+fi
+
+# Validate 4-digit hexadecimal format strictly
+if [[ ! "$ENTRY" =~ ^[0-9A-Fa-f]{4}$ ]]; then
+    echo "Error: Invalid boot entry format '$ENTRY'. Must be 4 hex digits (e.g. 0000) or --clear." >&2
     exit 1
 fi
 
