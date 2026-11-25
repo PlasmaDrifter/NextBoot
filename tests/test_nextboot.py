@@ -282,7 +282,13 @@ def test_gui_icon_resolution_and_widgets(isolated_env: Path, monkeypatch: pytest
     win = nextboot_gui.NextBootWindow()
     assert win.list_widget.count() == 4
     selected = win._get_selected_data()
-    assert selected is not None and selected["entry"].entry_id == "0000"
+    assert selected is not None and selected["entry"].entry_id == "0001"
+    row0_widget = win.list_widget.itemWidget(win.list_widget.item(0))
+    row1_widget = win.list_widget.itemWidget(win.list_widget.item(1))
+    assert isinstance(row0_widget, nextboot_gui.OSListRowWidget)
+    assert isinstance(row1_widget, nextboot_gui.OSListRowWidget)
+    assert not row0_widget.is_default
+    assert row1_widget.is_default
 
     win._show_status_message("First")
     assert win._banner_timer.isActive()

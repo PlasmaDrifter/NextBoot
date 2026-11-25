@@ -70,7 +70,7 @@ def cmd_list(mgr: UEFIManager, show_all: bool = False):
     hidden_list = [str(x) for x in hidden_raw] if isinstance(hidden_raw, list) else []
     hidden_count = 0
 
-    default_entry, is_fw_default, _ = mgr.get_configured_default()
+    default_entry = mgr.get_firmware_default_entry()
     entries_to_show = mgr.all_entries if show_all else mgr.entries
     for entry in entries_to_show:
         is_hidden = is_entry_hidden(entry, hidden_list, is_firmware=False)
@@ -80,7 +80,7 @@ def cmd_list(mgr: UEFIManager, show_all: bool = False):
                 continue
 
         is_current = (entry.entry_id == mgr.boot_current)
-        is_default = (not is_fw_default and default_entry is not None and entry.entry_id == default_entry.entry_id)
+        is_default = (default_entry is not None and entry.entry_id == default_entry.entry_id)
 
         status_flags = []
         if is_default:
@@ -106,9 +106,8 @@ def cmd_list(mgr: UEFIManager, show_all: bool = False):
 
     print("-" * 88)
     if not fw_hidden or show_all:
-        fw_suffix = " [DEFAULT]" if is_fw_default else ""
         fw_hidden_note = " [HIDDEN]" if fw_hidden and show_all else ""
-        print(f"Special shortcuts: nboot bios | nboot uefi (Reboots into BIOS/UEFI setup){fw_suffix}{fw_hidden_note}")
+        print(f"Special shortcuts: nboot bios | nboot uefi (Reboots into BIOS/UEFI setup){fw_hidden_note}")
     if hidden_count > 0 and not show_all:
         print(f"Note: {hidden_count} entries are hidden. Run 'nboot list --all' or 'nboot hidden' to view.")
 
@@ -154,6 +153,7 @@ def cmd_hidden(mgr: UEFIManager):
 
 def cmd_status(mgr: UEFIManager):
     print_banner()
+    fw_default = mgr.get_firmware_default_entry()
     default_entry, is_fw_default, default_target = mgr.get_configured_default()
 
     if is_fw_default:
@@ -163,8 +163,11 @@ def cmd_status(mgr: UEFIManager):
     else:
         resolved_desc = "Not detected"
 
+    fw_desc = f"Boot{fw_default.entry_id} ({fw_default.title})" if fw_default else "Unknown"
+
     print(f"Configuration file: {get_config_path()}")
-    print(f"Default target    : {default_target or 'auto'} ({resolved_desc})")
+    print(f"UEFI Default OS   : {fw_desc}")
+    print(f"CLI Target (nboot): {default_target or 'auto'} ({resolved_desc})")
     print(f"Current OS ID     : Boot{mgr.boot_current or 'Unknown'}")
     print(f"Active BootOrder  : {', '.join(['Boot' + x for x in mgr.boot_order])}")
     print(f"Next Boot Target  : {('Boot' + mgr.boot_next) if mgr.boot_next else 'Standard BootOrder'}")

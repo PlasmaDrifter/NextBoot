@@ -18,7 +18,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-__version__ = "v0.7.6"
+__version__ = "v0.7.7"
 
 KNOWN_SUBDISTROS = {
     "cachy": ("CachyOS", "Based on Arch Linux", ["cachyos", "cachy", "arch"]),
@@ -707,16 +707,9 @@ class UEFIManager:
             return None, True, target
         return self.find_entry(target, include_non_os=False), False, target
 
-    def get_default_entry(self, fallback_to_boot_order: bool = False) -> BootEntry | None:
-        """Retrieve the configured default OS entry (optionally falling back to UEFI BootOrder)."""
-        entry, is_firmware, _ = self.get_configured_default()
-        if is_firmware:
-            return None
-        if entry:
-            return entry
-        if fallback_to_boot_order:
-            return self.get_firmware_default_entry()
-        return None
+    def get_default_entry(self) -> BootEntry | None:
+        """Retrieve the system's UEFI BootOrder default OS entry."""
+        return self.get_firmware_default_entry()
 
     def get_hidden_entries(self) -> list[tuple[BootEntry | None, bool]]:
         """

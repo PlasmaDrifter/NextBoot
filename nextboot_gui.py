@@ -479,22 +479,23 @@ class CliHelpDialog(QDialog):
         grid1.setHorizontalSpacing(16)
         grid1.setVerticalSpacing(7)
 
-        default_entry, is_fw_default, _ = self.mgr.get_configured_default()
+        fw_default = self.mgr.get_firmware_default_entry()
+        configured_entry, is_fw_configured, _ = self.mgr.get_configured_default()
         row = 0
 
-        # Default reboot command
-        if is_fw_default:
+        # Bare nboot CLI target line
+        if is_fw_configured:
             cmd_def = QLabel("<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot</span>")
             cmd_def.setTextFormat(Qt.TextFormat.RichText)
-            desc_def = QLabel("<span style='color: #c9d1d9; font-size: 11px;'>Reboot to default target (UEFI Firmware / BIOS Setup)</span>")
+            desc_def = QLabel("<span style='color: #c9d1d9; font-size: 11px;'>Reboot to configured target (UEFI Firmware / BIOS Setup)</span>")
             desc_def.setTextFormat(Qt.TextFormat.RichText)
             grid1.addWidget(cmd_def, row, 0, Qt.AlignmentFlag.AlignLeft)
             grid1.addWidget(desc_def, row, 1, Qt.AlignmentFlag.AlignLeft)
             row += 1
-        elif default_entry:
+        elif configured_entry:
             cmd_def = QLabel("<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot</span>")
             cmd_def.setTextFormat(Qt.TextFormat.RichText)
-            desc_def = QLabel(f"<span style='color: #c9d1d9; font-size: 11px;'>Reboot to default target ({html.escape(default_entry.title)})</span>")
+            desc_def = QLabel(f"<span style='color: #c9d1d9; font-size: 11px;'>Reboot to configured target ({html.escape(configured_entry.title)})</span>")
             desc_def.setTextFormat(Qt.TextFormat.RichText)
             grid1.addWidget(cmd_def, row, 0, Qt.AlignmentFlag.AlignLeft)
             grid1.addWidget(desc_def, row, 1, Qt.AlignmentFlag.AlignLeft)
@@ -509,7 +510,7 @@ class CliHelpDialog(QDialog):
             for entry in self.mgr.entries:
                 short_slugs = entry.get_short_slugs()
                 cmd_str = " | ".join(html.escape(s) for s in short_slugs)
-                is_def = (not is_fw_default and default_entry is not None and entry.entry_id == default_entry.entry_id)
+                is_def = (fw_default is not None and entry.entry_id == fw_default.entry_id)
                 is_cur = (entry.entry_id == self.mgr.boot_current)
 
                 badges = []
@@ -529,10 +530,9 @@ class CliHelpDialog(QDialog):
                 row += 1
 
         # BIOS / UEFI command
-        fw_badge = " <span style='color: #ea580c; font-size: 10px; font-weight: 700;'>[DEFAULT]</span>" if is_fw_default else ""
         cmd_fw = QLabel("<span style='color: #fb923c; font-family: monospace; font-size: 12px; font-weight: bold;'>nboot bios | uefi</span>")
         cmd_fw.setTextFormat(Qt.TextFormat.RichText)
-        desc_fw = QLabel(f"<span style='color: #8b949e; font-size: 11px;'>Reboot into UEFI Firmware / BIOS Setup{fw_badge}</span>")
+        desc_fw = QLabel("<span style='color: #8b949e; font-size: 11px;'>Reboot into UEFI Firmware / BIOS Setup</span>")
         desc_fw.setTextFormat(Qt.TextFormat.RichText)
         grid1.addWidget(cmd_fw, row, 0, Qt.AlignmentFlag.AlignLeft)
         grid1.addWidget(desc_fw, row, 1, Qt.AlignmentFlag.AlignLeft)
@@ -1146,8 +1146,7 @@ class NextBootWindow(QWidget):
         else:
             self.hidden_btn.setVisible(False)
 
-        default_entry, is_fw_default, _ = self.mgr.get_configured_default()
-        fallback_entry = None if (is_fw_default or default_entry) else self.mgr.get_firmware_default_entry()
+        default_entry = self.mgr.get_firmware_default_entry()
 
         self._banner_timer.stop()
         self.banner.setVisible(False)
@@ -1162,7 +1161,7 @@ class NextBootWindow(QWidget):
                 continue
 
             is_current = (entry.entry_id == self.mgr.boot_current)
-            is_default = (not is_fw_default and default_entry is not None and entry.entry_id == default_entry.entry_id)
+            is_default = (default_entry is not None and entry.entry_id == default_entry.entry_id)
 
             item = QListWidgetItem(self.list_widget)
             widget = OSListRowWidget(
@@ -1181,7 +1180,7 @@ class NextBootWindow(QWidget):
                 "is_firmware": False,
             })
 
-            if is_default or (fallback_entry is not None and entry.entry_id == fallback_entry.entry_id):
+            if is_default:
                 default_row = visible_idx
             visible_idx += 1
 
@@ -1191,7 +1190,7 @@ class NextBootWindow(QWidget):
             fw_widget = OSListRowWidget(
                 entry=None,
                 is_current=False,
-                is_default=is_fw_default,
+                is_default=False,
                 is_firmware_setup=True,
                 parent=self.list_widget,
             )
@@ -1202,8 +1201,6 @@ class NextBootWindow(QWidget):
                 "entry": None,
                 "is_firmware": True,
             })
-            if is_fw_default:
-                default_row = visible_idx
 
         if self.items_data:
             if default_row >= len(self.items_data):
